@@ -6,8 +6,9 @@ application can start with zero environment setup during local development.
 package config
 
 import (
-	"log/slog" // slog = structured logging library
-	"os"       // used .Getenv calls and write logs to stdout.
+	"log/slog"
+	"os" // used .Getenv calls and write logs to stdout.
+	"path/filepath"
 )
 
 // Config struct holds all configuration values for the application.
@@ -41,10 +42,66 @@ type Config struct {
 	LogFormat string
 }
 
-// Load reads configuration from environment variables and RETURNS a populated Config struct.
+// NewLogger constructs a *slog.Logger based on the LogFormat field of the config.
+// "text" produces human-readable output for local development
+// any other value (including "json") produces structured JSON output for production
+// and Docker log shipping.
+// *Config is a pointer receiver rather than a value receiver cuz copying Config struct unnecessary
+// returning a pointer *slog.Logger rather than value is standard for complex objects
+// like loggers, database connections, or servers. It forces things to use the same logger instance.
+func (config *Config) NewLogger() *slog.Logger {
+	var handler slog.Handler // declaration of slog.Handler interface variable to hold the chosen log handler
+
+	// Syntax confusion - `slog.` is the package name, `HandlerOptions` is a struct type defined in slog package.
+	// &slog.HandlerOptions{} creates a new instance of HandlerOptions struct and returns its pointer rather than value
+	// {} is to initialize the struct's fields
+	options := &slog.HandlerOptions{
+		// AddSource adds the file name and line number to each log record
+		// useful during development to trace log origins.
+		AddSource: true, // this returns the absolute file path which is too long and eyesore
+		Level:     slog.LevelDebug,
+
+		/* ReplaceAttr is a build-in field (key) that accepts a function, that runs on every log call.
+
+		When the logger processes a log record, the logger checks each attribute (key-value pair)
+		like looping through them and runs the ReplaceAttr function on EACH attribute.
+		If the function returns a modified attribute, the logger uses that instead of the original.
+		`groups []string` is the list of strings if there are nested logs.
+		`attribute slog.Attr` is the current attribute being processed.
+		`slog.Attr` after the args is the return type
+		*/
+		ReplaceAttr: func(groups []string, attribute slog.Attr) slog.Attr {
+			// Check if the current attribute is the "source" (file path/line info)
+			if attribute.Key == slog.SourceKey {
+				/*
+					attribute.Value.Any(): The slog value is wrapped in a special type-safe container.
+					This "unwraps" it to see what's inside.
+					(*slog.Source) is like type casting in other languages.
+				*/
+				source := attribute.Value.Any().(*slog.Source)
+				// This takes the file's absolute path and just returns the filename
+				source.File = filepath.Base(source.File)
+			}
+			return attribute
+		},
+	}
+
+	if config.LogFormat == "text" {
+		handler = slog.NewTextHandler(os.Stdout, options) // text for local dev
+	} else {
+		handler = slog.NewJSONHandler(os.Stdout, options) // json for prod
+	}
+
+	// returns new logger with chosen handler
+	return slog.New(handler)
+}
+
+// LoadConfig reads configuration from environment variables and RETURNS a populated Config struct.
 // missing environment variables fall back to safe local development defaults
 // so the app can run without any setup during early development.
-func Load() *Config {
+func LoadConfig() *Config {
+	// create a new Config struct with values loaded from environment variables or defaults
+	// returns pointer to Config struct created
 	return &Config{
 		Port:           getEnv("PORT", "8080"),
 		DBPath:         getEnv("DB_PATH", "./corvus.db"),
@@ -64,27 +121,4 @@ func getEnv(key, fallbackValue string) string {
 		return value
 	}
 	return fallbackValue
-}
-
-// NewLogger constructs a *slog.Logger based on the LogFormat field of the config.
-// "text" produces human-readable output for local development
-// any other value (including "json") produces structured JSON output for production
-// and Docker log shipping.
-func (config *Config) NewLogger() *slog.Logger {
-	var handler slog.Handler
-
-	opts := &slog.HandlerOptions{
-		// AddSource adds the file name and line number to each log record.
-		// useful during development to trace log origins.
-		AddSource: true,
-		Level:     slog.LevelDebug,
-	}
-
-	if config.LogFormat == "text" {
-		handler = slog.NewTextHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
-	}
-
-	return slog.New(handler)
 }
