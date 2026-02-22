@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/config"
+	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
 )
 
 func main() {
@@ -29,4 +30,7 @@ func main() {
 
 	// temporary: confirm appConfig values loaded correctly
 	fmt.Printf("Config loaded: port=%s db=%s\n", appConfig.Port, appConfig.DBPath)
+
+	testDatabase, _ := db.OpenDatabase(appConfig.DBPath, logger) // opens the database and runs migration
+	defer testDatabase.CloseDatabase()                           // ensures the database connection is closed when main() exits
 }

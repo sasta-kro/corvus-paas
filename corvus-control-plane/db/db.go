@@ -4,11 +4,11 @@
 package db
 
 import (
-	"database/sql"
+	"database/sql" // standard lib for SQL acess. provides DB connection pool and query execution methods
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
+	"os"            // to change file access permission to modify database file
+	"path/filepath" // to create parent directory for the database file if it doesn't exist
 
 	// the underscore import registers the go-sqlite3 driver with database/sql
 	// without this import, sql.Open("sqlite3", ...) returns "unknown driver" error.
@@ -65,12 +65,6 @@ func (database *Database) migrate() error {
 		return fmt.Errorf("failed to execute schema migration (create tables & columns): %w", err)
 	}
 	return nil
-}
-
-// CloseDatabase releases the database connection pool. (closes connection)
-// this should be deferred in main.go immediately after Open returns successfully.
-func (database *Database) CloseDatabase() error {
-	return database.connection.Close()
 }
 
 /*
@@ -156,4 +150,10 @@ func OpenDatabase(dbPath string, logger *slog.Logger) (*Database, error) {
 
 	logger.Info("database opened and migrated", "path", dbPath)
 	return database, nil
+}
+
+// CloseDatabase releases the database connection pool. (closes connection)
+// this should be deferred in main.go immediately after Open returns successfully.
+func (database *Database) CloseDatabase() error {
+	return database.connection.Close()
 }

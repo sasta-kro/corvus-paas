@@ -6,9 +6,9 @@ application can start with zero environment setup during local development.
 package config
 
 import (
-	"log/slog"
-	"os" // used .Getenv calls and write logs to stdout.
-	"path/filepath"
+	"log/slog"      // slog = structured log. used for json logging in this app
+	"os"            // used .Getenv calls and write logs to stdout.
+	"path/filepath" // used to extract file base name form absolute path in logging.
 )
 
 // Config struct holds all configuration values for the application.
