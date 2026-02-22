@@ -21,7 +21,7 @@ func main() {
 		Warn:	Something is weird, but the app is still running.
 		Error:	Something broke (database connection failed, etc.).
 	*/
-	logger.Info("corvus control plane starting",
+	logger.Info("corvus control plane starting", // this log is level "Info"
 		"port", appConfig.Port,
 		"db_path", appConfig.DBPath,
 		"log_format", appConfig.LogFormat,
