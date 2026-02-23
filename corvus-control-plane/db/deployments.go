@@ -115,18 +115,21 @@ func (database *Database) GetDeployment(id string) (*models.Deployment, error) {
 		WHERE id = ?
 	`
 
-	// QueryRow is used for single-row queries. (Query() is for multiple rows.)
+	// QueryRow is used for single-rowQueried queries. (Query() is for multiple rows.)
 	// it returns a *sql.Row which has a Scan() method to read the data.
-	row := database.connection.QueryRow(query, id)
+	rowQueried := database.connection.QueryRow(query, id)
 	// QueryRow defers the "not found" check until Scan is invoked. If the database returns
 	// an empty set, Scan returns sql.ErrNoRows, which is then mapped to the domain-specific sentinel error.
 
-	deployment, err := scanDeployment(row)
+	deployment, err := scanDeploymentFields(rowQueried)
 	if errors.Is(err, sql.ErrNoRows) {
-		// sql.ErrNoRows is the standard error returned by Scan() when no row matches the query.
+		// sql.ErrNoRows is the standard error returned by Scan() when no rowQueried matches the query.
 		return nil, ErrRecordNotFound
 	}
 	if err != nil {
+		// This function only constructs and returns an error value; it
+		//    does NOT crash the program. The application only crashes if a "panic()"
+		//    is explicitly called or an unhandled memory violation occurs.
 		return nil, fmt.Errorf("failed to get deployment %q: %w", id, err)
 	}
 	return deployment, nil
@@ -144,40 +147,67 @@ func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := database.connection.Query(query) // Query() returns multiple rows
+	rows, err := database.connection.Query(query) // Query() returns multiple rows as *Rows struct
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments: %w", err)
 	}
 
 	// rows.Close() releases the database connection back to the pool.
-	// must be deferred immediately after checking the Query error,
-	// not before, because rows is nil if err != nil.
-	// Automatic Cleanup (QueryRow): The *sql.Row type returned by QueryRow
+	// Deferring rows.Close() must happen strictly AFTER checking the query
+	// error to prevent a crash (Go panics). If the query fails, the returned
+	// rows object is nil (no item, no pointer), and no database connection is kept open.
+	// (cuz the connection didn't even reach to get established in the first place).
+	// Attempting to call Close() on a nil object will cause the program to crash (trying to close a
+	// non-existent object). By placing the defer immediately after the error check,
+	// it guarantees that cleanup only occurs and safely executes when a valid, open connection
+	// was actually established.
+	defer rows.Close()
+
+	// QueryRow - Automatic Cleanup: The *sql.Row type returned by QueryRow
 	//    automatically releases its database connection back to the pool
 	//    as soon as the Scan() method is called.
 	//
-	// Manual Cleanup (Query): The *sql.Rows type returned by Query
-	//    maintains an active connection to allow for iteration. This
+	// Query - Manual Cleanup: The *sql.Rows type returned by Query
+	//    maintains an active connection to allow for iteration through the db records. This
 	//    connection must be explicitly released via rows.Close().
-	//    Failure to close rows results in a "connection leak," eventually
-	//    exhausting the connection pool and causing the application to hang.
-	defer rows.Close()
-
-	// TODO: continue checking the code from here.
+	//    Failure to close rows results in a "connection leak," where the connection is not released
+	//    back to the pool, causing the next db interaction to fail waiting for the connection to be available.
 
 	var deployments []*models.Deployment
+
+	// Go lacks a "while" keyword. Using "for" with a single boolean condition acts
+	// as a while loop. When *Rows obj is returned, the cursor is at the address right before
+	// the first row. So `rows.Next()` advances the database cursor and returns false
+	// when the results are exhausted.
 	for rows.Next() {
-		deployment, err := scanDeployment(rows)
+		deployment, err := scanDeploymentFields(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan deployment row: %w", err)
 		}
+
+		// append(): This is a Go "built-in" function, which is why it is lowercase.
+		//    It is a function rather than a method of `struct` because appending may require allocating
+		//    a larger backing array in memory. It returns the new slice with appended item, which
+		//    must be reassigned to the original variable (slice = append(slice, item)).
 		deployments = append(deployments, deployment)
 	}
 
 	// rows.Err() returns any error that occurred during iteration.
 	// this is separate from the scan error above and must be checked
 	// after the loop, not inside it.
-	if err := rows.Err(); err != nil {
+
+	// Post-Iteration Error Validation:
+	// Checking rows.Err() is not redundant. it is mandatory because `rows.Next()`
+	// can return false for two distinct reasons: (1) result set was
+	// successfully exhausted (all items are scanned), or an error occurred
+	// (like a lost connection from bad wifi) that forced the iteration to stop early.
+	// While the scan check inside the loop validates the data integrity of individual rows,
+	// rows.Err() validates the integrity of the entire communication stream.
+	// Example: there are 1000 deployments in db, 50 are scanned successfully, then a connection error occurs.
+	// Without rows.Err(), the app would think there are only 50 deployments and continue
+	// as if everything was fine, only showing the user 50 deployments instead of 1,000.
+	err = rows.Err()
+	if err != nil {
 		return nil, fmt.Errorf("error iterating deployment rows: %w", err)
 	}
 
@@ -185,21 +215,31 @@ func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 }
 
 // UpdateStatus sets the status and updated_at timestamp for a deployment.
-// this is the most frequent write operation: called at each state transition
+// this is the most frequent write operation, called at each state transition
 // in the deployment pipeline (deploying -> live | failed).
-func (database *Database) UpdateStatus(id string, status models.DeploymentStatus) error {
-	query := `UPDATE deployments SET status = ?, updated_at = ? WHERE id = ?`
+func (database *Database) UpdateStatus(id string, newStatus models.DeploymentStatus) error {
+	query := `
+		UPDATE deployments 
+		SET status = ?, 
+			updated_at = ? 
+		WHERE id = ?
+	`
 
-	result, err := database.conn.Exec(query, status, time.Now().UTC(), id)
+	result, err := database.connection.Exec(
+		query,
+		newStatus,
+		time.Now().UTC(), // for updated_at attribute
+		id,               // WHERE clause
+	)
 	if err != nil {
-		return fmt.Errorf("failed to update status for deployment %q: %w", id, err)
+		return fmt.Errorf("failed to update newStatus for deployment %q: %w", id, err)
 	}
 
 	// RowsAffected returns 0 if no row matched the WHERE clause,
 	// meaning the ID does not exist. this prevents silent no-ops.
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to read rows affected for deployment %q: %w", id, err)
+		return fmt.Errorf("failed to read rows affected for deployment %q (id might be wrong or row doesn't exist): %w", id, err)
 	}
 	if rowsAffected == 0 {
 		return ErrRecordNotFound
@@ -213,7 +253,12 @@ func (database *Database) UpdateStatus(id string, status models.DeploymentStatus
 func (database *Database) UpdateURL(id string, url string) error {
 	query := `UPDATE deployments SET url = ?, updated_at = ? WHERE id = ?`
 
-	result, err := database.conn.Exec(query, url, time.Now().UTC(), id)
+	result, err := database.connection.Exec(
+		query,
+		url,
+		time.Now().UTC(),
+		id,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to update url for deployment %q: %w", id, err)
 	}
@@ -235,7 +280,7 @@ func (database *Database) UpdateURL(id string, url string) error {
 func (database *Database) DeleteDeployment(id string) error {
 	query := `DELETE FROM deployments WHERE id = ?`
 
-	result, err := database.conn.Exec(query, id)
+	result, err := database.connection.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete deployment %q: %w", id, err)
 	}
@@ -251,8 +296,18 @@ func (database *Database) DeleteDeployment(id string) error {
 	return nil
 }
 
+// Logging In DB Layer or not??
+// In a layered architecture, the database layer avoids logging routine
+// queries to prevent log spam and duplicate error reporting. The database
+// package lacks the broader context of the operation, such as the HTTP
+// request ID, user IP, or execution time. Instead of logging, the database
+// layer returns data or wraps failures using fmt.Errorf and passes them
+// back up the call stack. The caller (e.g., the HTTP handler) assumes
+// full responsibility for logging the final success or failure, allowing
+// it to write a single, comprehensive log entry rich with request context.
+
 // scanner is an interface satisfied by both *sql.Row and *sql.Rows.
-// this allows scanDeployment to work with both QueryRow (single row)
+// this allows scanDeploymentFields to work with both QueryRow (single row)
 // and Query (multiple rows) without duplicating the scan logic.
 // Implicit Interfaces (Duck Typing): In Go, interfaces are satisfied
 //
@@ -263,16 +318,27 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-// scanDeployment reads and converts/serializes a single database row into a Deployment struct.
+// scanDeploymentFields reads and converts/serializes a single database row into a Deployment struct.
 // all pointer fields (GitHubURL, EnvVars, URL, WebhookSecret) are scanned
 // into their pointer types directly; database/sql sets them to nil for NULL columns.
-func scanDeployment(row scanner) (*models.Deployment, error) {
-	var deployment models.Deployment
+func scanDeploymentFields(row scanner) (*models.Deployment, error) {
+	// Memory Allocation and Zero Values in Go:
+	// By declaring 'var deployment models.Deployment' as a value rather than a
+	// pointer, Go safely allocates the required memory and initializes all
+	// fields to their default "zero values" (eg, "" for strings, nil for
+	// pointers, false for booleans). If declared as an uninitialized pointer
+	// (var deployment *models.Deployment), the variable would be nil, and
+	// attempting to access its fields (eg, &deployment.ID) for the Scan
+	// function would trigger a fatal nil pointer dereference panic.
+	// So just init value variable and let Scan() overwrite the fields is the safe and correct approach.
+	// Finally returning &deployment at the end of this function safely passes the
+	// populated memory address back to the caller.
+	var deployment models.Deployment // this is the struct to be returned at the end of function
 
-	// The Scan() method requires memory addresses
-	//    (pointers, via the & operator) for the destination variables. It
-	//    reads the raw database columns sequentially and overwrites the
-	//    memory addresses of the struct fields with the parsed Go types.
+	// The Scan() method requires memory addresses (pointers, via the `&` operator)
+	// for the destination variables. It reads the raw database columns sequentially
+	// (from the sqlite3 tuples) and overwrites the memory addresses of the
+	// struct fields (what are they set to initially when var deployment is declared?) with the parsed Go types.
 	err := row.Scan(
 		&deployment.ID,
 		&deployment.Slug,
