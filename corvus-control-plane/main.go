@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/config"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
@@ -28,9 +29,22 @@ func main() {
 		"log_format", appConfig.LogFormat,
 	)
 
-	// temporary: confirm appConfig values loaded correctly
+	// temp - confirm appConfig values loaded correctly
 	fmt.Printf("Config loaded: port=%s db=%s\n", appConfig.Port, appConfig.DBPath)
 
-	testDatabase, _ := db.OpenDatabase(appConfig.DBPath, logger) // opens the database and runs migration
-	defer testDatabase.CloseDatabase()                           // ensures the database connection is closed when main() exits
+	// opening the database and run schema migration (init tables)
+	// if this fails, the application cannot serve requests, so exit immediately
+	database, err := db.OpenDatabase(appConfig.DBPath, logger)
+	if err != nil {
+		// If the database cannot be opened or migrated, the application
+		// cannot function and must "fail fast". the standard library's
+		// log.Fatalf is used here because it synchronously writes to standard error
+		// before forcing an os.Exit(1), guaranteeing the crash reason is
+		// printed to the console. (Using a structured logger followed by os.Exit()
+		// risks losing the final log entry if the logger buffers its output, which they usually do).
+		log.Fatalf("failed to open database: %v", err)
+	}
+	defer database.CloseDatabase()
+
+	logger.Info("startup complete, ready to serve", "port", appConfig.Port) // ensures the database connection is closed when main() exits
 }
