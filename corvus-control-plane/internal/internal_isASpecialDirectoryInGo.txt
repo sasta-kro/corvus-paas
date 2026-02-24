@@ -1,1 +1,0 @@
-Packages inside `internal/` can only be imported by code in the parent directory tree. For a backend control plane, all the packages should be inside `internal/` because nothing outside this module should ever import them.
