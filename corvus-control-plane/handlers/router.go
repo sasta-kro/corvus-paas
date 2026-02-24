@@ -40,7 +40,7 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	// Common use cases include authentication, rate limiting, CORS header injection,
 	// and logging. They allow applying global rules without repeating code in every handler.
 	// middleware.Logger logs the method, path, status code, and latency of every request.
-	router.Use(middleware.Logger)
+	router.Use(middleware.Logger) // TODO replace with a custom slog middleware
 	// middleware.Recoverer catches panics in handlers and returns a 500 instead of crashing the process.
 	router.Use(middleware.Recoverer)
 	// both are standard inclusions for any production HTTP service.
@@ -73,8 +73,8 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 			apiRouter := chi.CreateAndSetupRouter()
 
 			// attach the routes that want to be under /api to it
-			apiRouter.Get("/deployments", deploymentHandler.List)
-			apiRouter.Post("/deployments", deploymentHandler.Create)
+			apiRouter.GetDeployment("/deployments", deploymentHandler.ListDeployments)
+			apiRouter.Post("/deployments", deploymentHandler.CreateDeployment)
 
 			// mount the configured router into the main router under the "/api" path.
 			router.Mount("/api", apiRouter)

@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// writeJSON serializes/marshalls/encodes/converts the given payload/data to JSON and writes it to the response.
+// writeJsonAndRespond serializes/marshalls/encodes/converts the given payload/data to JSON and writes it to the response.
 // it sets Content-Type to application/json and the given HTTP status code.
 // (deduplicates the 2 lines of w.Header().Set() and json.NewEncoder().Encode() that would be repeated in every handler)
 // (or in this case, the 3 lines of [ responseWriter.Header().Set() + json.Marshal() + w.Write() ].
@@ -15,7 +15,7 @@ import (
 // it falls back to a plain text 500 response.
 // all handlers use this function instead of calling json.NewEncoder directly,
 // keeping the response format consistent across the entire API.
-func writeJSON(responseWriter http.ResponseWriter, statusCode int, dataPayload any) {
+func writeJsonAndRespond(responseWriter http.ResponseWriter, statusCode int, dataPayload any) {
 	responseWriter.Header().Set("Content-Type", "application/json")
 
 	// .Marshal() is just a function that takes a Go value and returns its JSON encoding as a []byte (byte array)
@@ -48,25 +48,21 @@ func writeJSON(responseWriter http.ResponseWriter, statusCode int, dataPayload a
 	// there's nothing the server can do about it.
 }
 
-// writeError logs the error at level ERROR and
-// writes a standard JSON error response with the given HTTP status code and message.
+// writeErrorJsonAndLogIt logs the error at level ERROR and
+// writes a standard JSON error response to the client with the given HTTP status code and message.
 // this keeps error response shape consistent:
 //
-//	{"error": "some human readable message"}
+//	{"error": "some human-readable message"}
 //
 // callers pass in a logger so the error is also logged server-side with context.
 // the error message sent to the client is always a controlled string,
 // never a raw Go error, to avoid leaking internal implementation details.
-func writeError(
+func writeErrorJsonAndLogIt(
 	responseWriter http.ResponseWriter,
 	statusCode int,
 	message string,
 	logger *slog.Logger,
 ) {
 	logger.Error("request error", "status", statusCode, "message", message)
-	writeJSON(responseWriter, statusCode, map[string]string{"error": message})
+	writeJsonAndRespond(responseWriter, statusCode, map[string]string{"error": message})
 }
-
-/*
-
- */

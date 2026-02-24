@@ -87,9 +87,9 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 		deployment.SourceType,
 		deployment.GitHubURL, // *string, nil inserts NULL
 		deployment.Branch,
-		deployment.BuildCmd,
-		deployment.OutputDir,
-		deployment.EnvVars, // *string, nil inserts NULL
+		deployment.BuildCommand,
+		deployment.OutputDirectory,
+		deployment.EnvironmentVariables, // *string, nil inserts NULL
 		deployment.Status,
 		deployment.URL,           // *string, nil inserts NULL
 		deployment.WebhookSecret, // *string, nil inserts NULL
@@ -135,7 +135,7 @@ func (database *Database) GetDeployment(id string) (*models.Deployment, error) {
 	return deployment, nil
 }
 
-// ListDeployments returns all deployment rows ordered by creation time descending (DESC)
+// ListDeployments returns all deployment rows ordered by creation time descending (newest first)
 // (newest first), matching the expected dashboard sort order.
 func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 	query := `
@@ -173,7 +173,7 @@ func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 	//    Failure to close rows results in a "connection leak," where the connection is not released
 	//    back to the pool, causing the next db interaction to fail waiting for the connection to be available.
 
-	var deployments []*models.Deployment
+	var deployments []*models.Deployment // init
 
 	// Go lacks a "while" keyword. Using "for" with a single boolean condition acts
 	// as a while loop. When *Rows obj is returned, the cursor is at the address right before
@@ -319,7 +319,7 @@ type scanner interface {
 }
 
 // scanDeploymentFields reads and converts/serializes a single database row into a Deployment struct.
-// all pointer fields (GitHubURL, EnvVars, URL, WebhookSecret) are scanned
+// all pointer fields (GitHubURL, EnvironmentVariables, URL, WebhookSecret) are scanned
 // into their pointer types directly; database/sql sets them to nil for NULL columns.
 func scanDeploymentFields(row scanner) (*models.Deployment, error) {
 	// Memory Allocation and Zero Values in Go:
@@ -346,9 +346,9 @@ func scanDeploymentFields(row scanner) (*models.Deployment, error) {
 		&deployment.SourceType,
 		&deployment.GitHubURL, // scans NULL -> nil *string
 		&deployment.Branch,
-		&deployment.BuildCmd,
-		&deployment.OutputDir,
-		&deployment.EnvVars, // scans NULL -> nil *string
+		&deployment.BuildCommand,
+		&deployment.OutputDirectory,
+		&deployment.EnvironmentVariables, // scans NULL -> nil *string
 		&deployment.Status,
 		&deployment.URL,           // scans NULL -> nil *string
 		&deployment.WebhookSecret, // scans NULL -> nil *string

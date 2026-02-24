@@ -68,5 +68,5 @@ func (handler *HealthHandler) Health(responseWriter http.ResponseWriter, request
 	// WriteJSON is called as a helper here.
 	// the response body is always JSON, so centralizing the encoding & content-type header
 	// maker in a helper avoids repeating the same 4 lines in every handler function.
-	writeJSON(responseWriter, http.StatusOK, response)
+	writeJsonAndRespond(responseWriter, http.StatusOK, response)
 }

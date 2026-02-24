@@ -22,6 +22,7 @@ type SourceType string
 /*
 Gemini said
 In Go, the const (...) syntax is a Constant Block. It is used like an ENUM in other languages.
+Used like `models.StatusDeploying` or `models.SourceZip` where the `models` is the package name.
 It is used to group related constants together under a single declaration,
 rather than repeating the const keyword on every line.
 basically instead of this:
@@ -89,21 +90,21 @@ type Deployment struct {
 	// Branch is the git branch to clone and build from, should default to "main"
 	Branch string `json:"branch" db:"branch"`
 
-	// BuildCmd is the shell command run inside the build container before serving.
+	// BuildCommand is the shell command run inside the build container before serving.
 	// empty string means no build step (pre-built static site).
 	// example: "npm ci && npm run build"
-	BuildCmd string `json:"build_cmd" db:"build_cmd"`
+	BuildCommand string `json:"build_command" db:"build_command"`
 
-	// OutputDir is the directory inside the repo or extracted zip that contains
+	// OutputDirectory is the directory inside the repo or extracted zip that contains
 	// the final static files to serve. defaults to "." (root of the archive).
 	// example: "dist", "build", "out"
-	OutputDir string `json:"output_dir" db:"output_dir"`
+	OutputDirectory string `json:"output_directory" db:"output_directory"`
 
-	// EnvVars is a JSON-encoded key-value map of environment variables
+	// EnvironmentVariables is a JSON-encoded key-value map of environment variables
 	// passed into the build container. stored as a string in SQLite.
 	// example: {"NODE_ENV":"production"}
 	// nil means no env vars were provided
-	EnvVars *string `json:"env_vars,omitempty" db:"env_vars"`
+	EnvironmentVariables *string `json:"environment_variables,omitempty" db:"environment_variables"`
 
 	// Status is the current lifecycle state of the deployment
 	Status DeploymentStatus `json:"status" db:"status"`
