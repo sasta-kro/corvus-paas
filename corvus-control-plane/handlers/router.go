@@ -45,11 +45,15 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	router.Use(middleware.Recoverer)
 	// both are standard inclusions for any production HTTP service.
 
-	// --- handler construction ---
+	// --- handler init/construction ---
 	// each handler receives only the dependencies it actually needs.
 	// handlers do not use for global variables (like having LOGGER as global) cuz of dependency injection.
-	// /health needs only the logger; deployment handlers will also need the database.
+
+	// /health needs only the logger
 	healthHandler := NewHealthHandler(dependencies.Logger)
+
+	// deployment handlers will need the database and logger
+	deploymentHander := NewDeploymentHandler(dependencies.Database, dependencies.Logger)
 
 	// --- route registration ---
 
@@ -63,8 +67,16 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	// This is api route group (basically having an `/api/` prefix (/api/health) for all API routes
 	// non-API routes like /health are kept outside this group intentionally.
 	router.Route("/api", func(apiRouter chi.Router) {
-		// deployment routes will be registered here in the future.
+		apiRouter.Get("/deployments", deploymentHander.ListDeployments)
+		// {id} is a placeholder for the actual id (like "happy-dog-1234"), `{id}` gets handled by chi library
+		apiRouter.Get("/deployments/{id}", deploymentHander.GetDeployment)
+
+		apiRouter.Post("/deployments", deploymentHander.CreateDeployment)
+
+		// TODO redeploy and delete will be added in the future
+
 		// placeholder to confirm the route group compiles correctly
+		// if the routes are not registered yet
 		_ = apiRouter
 
 		// This is the less magic way to register routes without using chi's Route() grouping.
