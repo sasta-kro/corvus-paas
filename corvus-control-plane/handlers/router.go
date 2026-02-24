@@ -69,7 +69,7 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	router.Route("/api", func(apiRouter chi.Router) {
 		apiRouter.Get("/deployments", deploymentHander.ListDeployments)
 		// {id} is a placeholder for the actual id (like "happy-dog-1234"), `{id}` gets handled by chi library
-		apiRouter.Get("/deployments/{id}", deploymentHander.GetDeployment)
+		apiRouter.Get("/deployments/{uuid}", deploymentHander.GetDeployment)
 
 		apiRouter.Post("/deployments", deploymentHander.CreateDeployment)
 

@@ -102,12 +102,13 @@ func (handler *DeploymentHandler) ListDeployments(responseWriter http.ResponseWr
 // Returns a single deployment by UUID, or 404 if not found.
 // in REST api, `:` colon is for a placeholder variable rather than a string (dynamic route segment)
 // the colon syntax is just for documentation and convention. In go chi lib, curly braces is used (`/deployments/{id}`)
+// TODO: endpoint/resource aliasing for `/deployments/{uuid}` with `/deployments/{slug}` so it has better UX (just uuid is just ugly)
 func (handler *DeploymentHandler) GetDeployment(responseWriter http.ResponseWriter, request *http.Request) {
 
 	// chi.URLParam() extracts the named URL parameter registered in the route pattern.
 	// for the route "/api/deployments/{id}", chi.URLParam(r, "id") returns the value
 	// that matched the {id} segment of the incoming URL.
-	deploymentID := chi.URLParam(request, "id")
+	deploymentID := chi.URLParam(request, "uuid")
 	/*
 		When a request is made to an endpoint like /api/deployments/happy-dog-1234,
 		the Chi router matches the "happy-dog-1234" segment against the {id} placeholder.
