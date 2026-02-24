@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/handlers"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/config"
@@ -52,62 +50,9 @@ func main() {
 	}
 	defer database.CloseDatabase() // close db conn when main() exists
 
-	// --- router setup ---
-	router := chi.NewRouter() // type is *chi.Mux, implements http.Handler interface
-	// Mux: Short for Multiplexer, this is the HTTP router (chi.Mux). It acts
-	//    as a switchboard, inspecting incoming request URLs and routing them to
-	//    the appropriate Go handler functions.
-
-	// chi middleware runs on every request before the handler is called.
-	// Common use cases include authentication, rate limiting, CORS header injection,
-	// and logging. They allow applying global rules without repeating code in every handler.
-	// middleware.Logger logs the method, path, status code, and latency of every request.
-	router.Use(middleware.Logger)
-	// middleware.Recoverer catches panics in handlers and returns a 500 instead of crashing the process.
-	router.Use(middleware.Recoverer)
-	// both are standard inclusions for any production HTTP service.
-
-	// The built-in chi middleware.Logger operates
-	//    independently of this application's structured slog.Logger. It prints
-	//    basic request data to standard output. While functional for development,
-	//    production systems typically require writing a custom middleware adapter // TODO
-	//    to force the router to use the primary structured logger.
-
-	// --- handler construction ---
-
-	// handlers are constructed here in main and passed their dependencies explicitly.
-	// this is dependency injection: handlers do not use for global variables (like having LOGGER as global)
-	// they receive what they need as arguments.
-	healthHandler := handlers.NewHealthHandler(logger)
-
-	// --- route registration ---
-
-	// The `/health` endpoint is intentionally kept at the root level rather
-	// than under an /api prefix. External infrastructure components, such as
-	// load balancers (AWS), container orchestrators (K8s), and uptime monitors, typically
-	// expect health checks at standard root paths (`/health` and not `/api/health`) and do not have context
-	// about the application's internal route grouping and API structure
-	router.Get("/health", healthHandler.Health)
-
-	// This is api route group (basically having an `/api` prefix or 'folder' for all API routes
-	// non-API routes like /health are kept outside this group intentionally.
-	router.Route("/api", func(apiRouter chi.Router) {
-		// deployment routes will be registered here in the future.
-		// placeholder to confirm the route group compiles correctly
-		_ = apiRouter
-
-		// This is the less magic way to register routes without using chi's Route() grouping.
-		/*
-			// first, explicitly create a brand new, empty router
-			apiRouter := chi.NewRouter()
-
-			// attach the routes that want to be under /api to it
-			apiRouter.Get("/deployments", deploymentHandler.List)
-			apiRouter.Post("/deployments", deploymentHandler.Create)
-
-			// mount the configured router into the main router under the "/api" path.
-			router.Mount("/api", apiRouter)
-		*/
+	router := handlers.CreateAndSetupRouter(handlers.RouterDependencies{
+		Logger:   logger,
+		Database: database,
 	})
 
 	// --- HTTP server construction ---
