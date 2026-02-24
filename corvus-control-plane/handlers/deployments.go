@@ -265,6 +265,8 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 
 	// 201 Created is the correct status for a successful resource creation.
 	// 200 OK is for successful reads or updates, not for new resource creation.
+	// this responds with 201 AND a json of the full models.Deployment struct that just created
+	// (for the client to do frontend logic and display)
 	writeJsonAndRespond(responseWriter, http.StatusCreated, deployment)
 }
 

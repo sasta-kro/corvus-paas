@@ -108,7 +108,7 @@ func LoadConfig() *Config {
 		ServeRoot:      getEnv("SERVE_ROOT", "./data/deployments"),
 		LogRoot:        getEnv("LOG_ROOT", "./data/logs"),
 		TraefikNetwork: getEnv("TRAEFIK_NETWORK", "paas-network"),
-		LogFormat:      getEnv("LOG_FORMAT", "json"),
+		LogFormat:      getEnv("LOG_FORMAT", "text"),
 	}
 }
 

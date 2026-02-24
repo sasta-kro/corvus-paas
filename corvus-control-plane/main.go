@@ -30,7 +30,7 @@ func main() {
 		Warn:	Something is weird, but the app is still running.
 		Error:	Something broke (database connection failed, etc.).
 	*/
-	logger.Info("corvus control plane starting", // this log is level "Info"
+	logger.Info("corvus-paas control plane starting", // this log is level "Info"
 		"port", appConfig.Port,
 		"db_path", appConfig.DBPath,
 		"log_format", appConfig.LogFormat,
@@ -122,7 +122,7 @@ func main() {
 	// programmatically to external termination requests.
 	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.Info("startup complete, ready to serve", "port", appConfig.Port) // ensures the database connection is closed when main() exits
+	logger.Info("startup complete, server ready to serve", "port", appConfig.Port) // ensures the database connection is closed when main() exits
 
 	// Concurrent Channel Multiplexing `select{ }`:
 	// The select{} statement is used to wait on multiple channel operations simultaneously.

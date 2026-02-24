@@ -148,7 +148,7 @@ func OpenDatabase(dbPath string, logger *slog.Logger) (*Database, error) {
 		return nil, fmt.Errorf("database migration (table & column creation, DDL) failed: %w", err)
 	}
 
-	logger.Info("database opened and migrated", "path", dbPath)
+	logger.Info("database opened and schema migrated", "path", dbPath)
 	return database, nil
 }
 
