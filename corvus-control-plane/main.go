@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sasta-kro/corvus-paas/corvus-control-plane/docker"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/handlers"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/config"
@@ -49,6 +50,36 @@ func main() {
 		log.Fatalf("failed to open database: %v", err)
 	}
 	defer database.CloseDatabase() // close db conn when main() exists
+
+	// Docker client setup
+	dockerClient, err := docker.NewClient(logger)
+	if err != nil {
+		log.Fatalf("failed to connect to docker daemon: %v", err)
+	}
+	defer dockerClient.Close()
+
+	// --- TEMPORARY DOCKER TEST BLOCK ---
+	// this block manually starts an Nginx container and then removes it.
+	// can be removed once the pipeline is wired to the API.
+	testContext := context.Background()
+	testSlug := "hello-world"
+
+	logger.Info("starting test nginx container", "slug", testSlug)
+	err = dockerClient.CreateAndStartNginxContainer(testContext, docker.NginxContainerConfig{
+		ContainerName:       "deploy-" + testSlug,
+		Slug:                testSlug,
+		HostSourceDirectory: "/tmp/corvus-test/hello-world",
+		TraefikNetwork:      appConfig.TraefikNetwork,
+	})
+	if err != nil {
+		// log but do not fatal here -- this is a test, not critical startup
+		logger.Error("test container start failed", "error", err)
+	} else {
+		logger.Info("test container started, check `docker ps` and http://hello-world.localhost")
+	}
+	// --- END TEMPORARY DOCKER TEST BLOCK ---
+
+	// Router setup
 
 	router := handlers.CreateAndSetupRouter(handlers.RouterDependencies{
 		Logger:   logger,
