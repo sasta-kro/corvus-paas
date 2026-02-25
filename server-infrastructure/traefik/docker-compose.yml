@@ -1,20 +1,30 @@
 services:
-  traefik:
+  traefik-corvus:
     image: "traefik:v3.0"
-    container_name: "traefik"
+    container_name: "traefik-corvus"
     command:
+      # enable the Traefik web dashboard (for debugging)
       - "--api.insecure=true"
+      # make Traefik listen to Docker for routing rules
       - "--providers.docker=true"
+      # dont expose containers unless they explicitly have a traefik label (security)
       - "--providers.docker.exposedbydefault=false"
+      # set up the main http entrypoint on port 80
       - "--entrypoints.web.address=:80"
     ports:
+      # listen on the host's (VM) port 80 and map to traefik's port 80
       - "80:80"
+      # map traefik's dashboard to port 8081 (trying not to have conflicts)
       - "8081:8080"
+      # 9090 = Fedora's web console, 9000 = Portainer
     volumes:
+      # giving traefik read-only access to the Docker socket so it can see the containers
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
-      - paas-network
+      # connecting traefik to corvus-paas-network so it can route to the containers in there
+      - corvus-paas-network
 
 networks:
-  paas-network:
+  corvus-paas-network:
+    # telling docker-compose that this network already exists (created manually)
     external: true
