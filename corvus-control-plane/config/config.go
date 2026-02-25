@@ -11,11 +11,11 @@ import (
 	"path/filepath" // used to extract file base name form absolute path in logging.
 )
 
-// Config struct holds all configuration values for the application.
+// AppConfig struct holds all configuration values for the application.
 // values are read once at startup and passed through the app via dependency injection.
-// no global config variable is used. callers receive a *Config explicitly,
+// no global config variable is used. callers receive a *AppConfig explicitly,
 // making dependencies visible and the code easier to test.
-type Config struct {
+type AppConfig struct {
 	// Port is the TCP port the HTTP server listens on
 	Port string
 
@@ -46,10 +46,10 @@ type Config struct {
 // "text" produces human-readable output for local development
 // any other value (including "json") produces structured JSON output for production
 // and Docker log shipping.
-// *Config is a pointer receiver rather than a value receiver cuz copying Config struct unnecessary
+// *AppConfig is a pointer receiver rather than a value receiver cuz copying AppConfig struct unnecessary
 // returning a pointer *slog.Logger rather than value is standard for complex objects
 // like loggers, database connections, or servers. It forces things to use the same logger instance.
-func (config *Config) NewLogger() *slog.Logger {
+func (config *AppConfig) NewLogger() *slog.Logger {
 	var handler slog.Handler // declaration of slog.Handler interface variable to hold the chosen log handler
 
 	// Syntax confusion - `slog.` is the package name, `HandlerOptions` is a struct type defined in slog package.
@@ -96,18 +96,19 @@ func (config *Config) NewLogger() *slog.Logger {
 	return slog.New(handler)
 }
 
-// LoadConfig reads configuration from environment variables and RETURNS a populated Config struct.
+// LoadAppConfig reads configuration from environment variables and RETURNS a populated AppConfig struct.
 // missing environment variables fall back to safe local development defaults
 // so the app can run without any setup during early development.
-func LoadConfig() *Config {
-	// create a new Config struct with values loaded from environment variables or defaults
-	// returns pointer to Config struct created
-	return &Config{
+// TODO: to move on from hard coded and actually make a external file to load the config data
+func LoadAppConfig() *AppConfig {
+	// create a new AppConfig struct with values loaded from environment variables or defaults
+	// returns pointer to AppConfig struct created
+	return &AppConfig{
 		Port:           getEnv("PORT", "8080"),
 		DBPath:         getEnv("DB_PATH", "./corvus.db"),
 		ServeRoot:      getEnv("SERVE_ROOT", "./data/deployments"),
 		LogRoot:        getEnv("LOG_ROOT", "./data/logs"),
-		TraefikNetwork: getEnv("TRAEFIK_NETWORK", "paas-network"),
+		TraefikNetwork: getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
 		LogFormat:      getEnv("LOG_FORMAT", "text"),
 	}
 }

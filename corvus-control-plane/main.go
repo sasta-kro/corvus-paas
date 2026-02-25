@@ -17,8 +17,8 @@ import (
 )
 
 func main() {
-	appConfig := config.LoadConfig() // loads the config and stores pointer
-	logger := appConfig.NewLogger()  // return a logger (slog) based on `LogFormat` (text or json)
+	appConfig := config.LoadAppConfig() // loads the config and stores pointer
+	logger := appConfig.NewLogger()     // return a logger (slog) based on `LogFormat` (text or json)
 
 	/*
 		logger.Info() aka `slog.Logger.Info()` is just a glorified print
