@@ -52,7 +52,8 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 		dockerSDKclient.WithAPIVersionNegotiation(),
 	)
 	if err != nil {
-		// In Go, a foundational rule of error handling is to either handle an error or return it, but never both.
+		// In Go, a foundational rule of error handling is to either
+		// handle an error (which may include logging it) or return it, but never both.
 		// this is so that there won't be duplicate error logs when the caller handles it too
 		return nil, fmt.Errorf("failed to create docker sdk client: %w", err)
 	}
@@ -103,7 +104,8 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker daemon unreachable: %w", err)
 		// serious error cuz this is the whole point of the platform
-		// In Go, a foundational rule of error handling is to either handle an error or return it, but never both.
+		// In Go, a foundational rule of error handling is to either
+		// handle an error (which may include logging it) or return it, but never both.
 		// this is so that there won't be duplicate error logs when the caller handles it too
 	}
 

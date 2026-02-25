@@ -30,10 +30,10 @@ import (
 // to serve static files over HTTP.
 const nginxImage string = "nginx:alpine"
 
-// NginxContainerConfigArgs holds the parameters/args the caller passes to CreateAndStartNginxContainer().
+// NginxContainerConfig holds the parameters/args the caller passes to CreateAndStartNginxContainer().
 // Grouping them in a struct rather than as individual function arguments keeps
 // the function signature stable as more options are added (eg custom nginx config in future implementations).
-type NginxContainerConfigArgs struct {
+type NginxContainerConfig struct {
 	// the Docker container name. convention: "deploy-<slug>"
 	ContainerName string
 
@@ -82,7 +82,7 @@ type NginxContainerConfigArgs struct {
 // This is the function that makes a deployment "live": once this returns without error,
 // Traefik has already picked up the new routing rule and the site is reachable.
 // args: need context cuz the underlying docker sdk methods require context, config struct is just to organize actual args
-func (dockerClient *Client) CreateAndStartNginxContainer(context context.Context, config NginxContainerConfigArgs) error {
+func (dockerClient *Client) CreateAndStartNginxContainer(context context.Context, config NginxContainerConfig) error {
 	// --- pull image (with helper func) ---
 
 	// ImagePull returns a stream of JSON progress events (one line per layer).
