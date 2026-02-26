@@ -84,7 +84,10 @@ func NewDeployerPipeline(
 //   - start nginx container with the asset storage directory bind-mounted
 //   - update status to "live"
 //   - clean up temp files
-func (deployerPipeline *DeployerPipeline) DeployZipUpload(deployment *models.Deployment, uploadedFile io.Reader) {
+func (deployerPipeline *DeployerPipeline) DeployZipUpload(
+	deployment *models.Deployment,
+	uploadedFile io.ReadCloser,
+) {
 	// a background context is used for the deployerPipeline goroutine.
 	// the HTTP request context would be cancelled the moment the handler returns,
 	// which would cancel all Docker SDK calls mid-flight.
@@ -106,6 +109,8 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(deployment *models.Dep
 	if logFile != nil { // close only if log file opened
 		defer logFile.Close()
 	}
+
+	defer uploadedFile.Close() // why here tho???
 
 	// deployerPipelineLog() is a helper that generates two log (simultaneously), a raw text entry in
 	// a specific deployment log file and a structured log entry in the application’s standard output.
@@ -201,6 +206,10 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(deployment *models.Dep
 			fmt.Sprintf("output directory %q not found inside the zip archive", deployment.OutputDirectory),
 			errOutputDirDoesntExist,
 		)
+		return
+	}
+	if errOutputDirDoesntExist != nil {
+		failedDeploymentStatusUpdateAndLogIt("failed to stat output directory", errOutputDirDoesntExist)
 		return
 	}
 

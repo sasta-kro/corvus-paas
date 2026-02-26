@@ -248,7 +248,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	// returns the file content as a multipart.File (implements io.Reader)
 	// and a FileHeader containing metadata (original filename, size, MIME type).
 	// returns an error if the field is absent or the upload failed.
-	var uploadedFile multipart.File
+	var uploadedFile multipart.File // multipart.File is an interface that embeds io.Reader, io.ReaderAt, io.Seeker, and io.Closer
 	if validatedRequest.SourceType == models.SourceZip {
 		var formFileErr error
 		uploadedFile, _, formFileErr = request.FormFile("file")
@@ -256,7 +256,10 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 			writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "file is required for zip source type", handler.logger)
 			return
 		}
-		defer uploadedFile.Close()
+		// the uploadedFile is not closed here. If deferred to close, it will close when this CreateDeployment
+		// function ends. But the DeployerPipeline is in a go routine so
+		// it wont finish yet, thus having closed file errors
+
 	}
 
 	// --- generate deployment identifiers

@@ -1,6 +1,6 @@
 // Package handlers  contains all HTTP handler functions for the corvus control plane API.
 // each handler file groups related endpoints by resource or concern.
-// handlers receive a decoded request, call into the db or pipeline layer, and write a JSON response.
+// handlers receive a decoded request, call into the db or deployerPipeline layer, and write a JSON response.
 // no business logic lives in handlers; they are thin translation layers between HTTP and the domain.
 
 package handlers
