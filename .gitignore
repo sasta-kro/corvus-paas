@@ -10,6 +10,7 @@
 # dev tools
 **/*temp*
 **/*repomix*
+**/myNotes/
 
 # secrets
 **/*.db
