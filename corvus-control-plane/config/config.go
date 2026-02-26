@@ -104,10 +104,12 @@ func LoadAppConfig() *AppConfig {
 	// create a new AppConfig struct with values loaded from environment variables or defaults
 	// returns pointer to AppConfig struct created
 	return &AppConfig{
-		Port:             getEnv("PORT", "8080"),
-		DBPath:           getEnv("DB_PATH", "./corvus.db"),
-		AssetStorageRoot: getEnv("ASSET_STORAGE_ROOT", "./data/deployments"),
-		LogRoot:          getEnv("LOG_ROOT", "./data/logs"),
+		Port:   getEnv("PORT", "8080"),
+		DBPath: getEnv("DB_PATH", "./corvus.db"),
+		// platform and server resources should be in `/srv` cuz of FHS compliance and SELinux context avoidance
+		// (can have permission problem with SELinux in $HOME)
+		AssetStorageRoot: getEnv("ASSET_STORAGE_ROOT", "/srv/corvus-paas/deployments"),
+		LogRoot:          getEnv("LOG_ROOT", "/srv/corvus-paas/logs"),
 		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
 		LogFormat:        getEnv("LOG_FORMAT", "text"),
 	}
