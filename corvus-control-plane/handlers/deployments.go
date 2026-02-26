@@ -315,7 +315,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		"name", validatedRequest.Name,
 	)
 
-	// --- trigger deploy deployerPipeline asynchronously
+	// ---  Start deployerPipeline asynchronously
 
 	// the deployerPipeline runs in a goroutine so the HTTP handler returns immediately.
 	// the client receives 201 with status "deploying" and polls for updates.
