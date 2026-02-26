@@ -26,7 +26,7 @@ type AppConfig struct {
 	// the base directory on disk where extracted deployment
 	// files are written. each deployment gets its own subdirectory here,
 	// which is bind-mounted into the Nginx container.
-	ServeRoot string
+	AssetStorageRoot string
 
 	// the base directory where build and deploy log files are written.
 	// one log file per deployment, named by slug.
@@ -104,12 +104,12 @@ func LoadAppConfig() *AppConfig {
 	// create a new AppConfig struct with values loaded from environment variables or defaults
 	// returns pointer to AppConfig struct created
 	return &AppConfig{
-		Port:           getEnv("PORT", "8080"),
-		DBPath:         getEnv("DB_PATH", "./corvus.db"),
-		ServeRoot:      getEnv("SERVE_ROOT", "./data/deployments"),
-		LogRoot:        getEnv("LOG_ROOT", "./data/logs"),
-		TraefikNetwork: getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
-		LogFormat:      getEnv("LOG_FORMAT", "text"),
+		Port:             getEnv("PORT", "8080"),
+		DBPath:           getEnv("DB_PATH", "./corvus.db"),
+		AssetStorageRoot: getEnv("ASSET_STORAGE_ROOT", "./data/deployments"),
+		LogRoot:          getEnv("LOG_ROOT", "./data/logs"),
+		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
+		LogFormat:        getEnv("LOG_FORMAT", "text"),
 	}
 }
 

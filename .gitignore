@@ -13,4 +13,4 @@
 **/myNotes/
 
 # secrets
-**/*.db
+# **/*.db # will be tracked for a bit during development

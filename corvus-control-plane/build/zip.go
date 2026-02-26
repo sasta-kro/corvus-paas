@@ -22,7 +22,8 @@ func ExtractZipUpload(zipFilePath string, destinationDirectory string) error {
 	// os.MkdirAll creates destinationDirectory and any missing parents.
 	// chmod 0755 - owner has read/write/execute, group and others have read/execute.
 	// (execute permission on a directory means the ability to cd into it)
-	if errMakeDir := os.MkdirAll(destinationDirectory, 0755); errMakeDir != nil {
+	errMakeDir := os.MkdirAll(destinationDirectory, 0755)
+	if errMakeDir != nil {
 		return fmt.Errorf("failed to create extraction directory %q: %w", destinationDirectory, errMakeDir)
 	}
 
@@ -127,7 +128,8 @@ func writeZipEntryToDisk(zipEntry *zip.File, destinationPath string) error {
 		return fmt.Errorf("failed to create destination file %q: %w", destinationPath, errOpenZipEntry)
 	}
 	defer destinationFile.Close()
-	// compressed file bytes are stored in this variable before writing so gotta close it later
+	// this is a pointer (open file handle) on the host filesystem. The defer call makes the os
+	// releases the file descriptor and flushes all pending data to the disk after the function execution ends.
 
 	// io.Copy() decompresses the zip entry and streams the decompressed entry content
 	// into the destination file. It reads data as chunks internally, so arbitrarily large

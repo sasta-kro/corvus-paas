@@ -1,6 +1,6 @@
 services:
   traefik-corvus:
-    image: "traefik:v3.6"
+    image: "traefik:v3.6"  # Docker engine v29+ only accept traefik v3.6+
     container_name: "traefik-corvus"
     command:
       # enable the Traefik web dashboard (for debugging)
