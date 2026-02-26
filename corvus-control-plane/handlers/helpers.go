@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -65,4 +67,16 @@ func writeErrorJsonAndLogIt(
 ) {
 	logger.Error("request error", "status", statusCode, "message", message)
 	writeJsonAndRespond(responseWriter, statusCode, map[string]string{"error": message})
+}
+
+// generateWebhookSecret returns a cryptographically secure random hex string
+// suitable for use as an HMAC-SHA256 signing secret.
+// 32 random bytes encoded as hex produces a 64-character string.
+func generateWebhookSecret() (string, error) {
+	// make a 32-byte slice, crypto/rand fills it with random bytes from the OS entropy source
+	secretBytes := make([]byte, 32)
+	if _, err := rand.Read(secretBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(secretBytes), nil
 }

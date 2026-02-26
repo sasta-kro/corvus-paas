@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -336,14 +334,99 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	// (response is for the client to do frontend logic and display)
 }
 
-// generateWebhookSecret returns a cryptographically secure random hex string
-// suitable for use as an HMAC-SHA256 signing secret.
-// 32 random bytes encoded as hex produces a 64-character string.
-func generateWebhookSecret() (string, error) {
-	// make a 32-byte slice, crypto/rand fills it with random bytes from the OS entropy source
-	secretBytes := make([]byte, 32)
-	if _, err := rand.Read(secretBytes); err != nil {
-		return "", err
+// DeleteDeployment handles DELETE /api/deployments/:uuid.
+// performs the full teardown sequence:
+//   - fetch the deployment record from the database
+//   - stop and remove the Docker container
+//   - remove the static files from the asset storage root
+//   - remove the deployment log file
+//   - delete the database record (last, so retries are possible if earlier steps fail)
+//
+// returns 204 No Content on success (the standard HTTP response for a successful delete
+// that has no response body to return).
+func (handler *DeploymentHandler) DeleteDeployment(responseWriter http.ResponseWriter, request *http.Request) {
+	deploymentID := chi.URLParam(request, "uuid")
+
+	// fetch the deployment to get the slug (needed for container name and file paths)
+	deployment, err := handler.database.GetDeployment(deploymentID)
+	if errors.Is(err, db.ErrRecordNotFound) {
+		writeErrorJsonAndLogIt(responseWriter, http.StatusNotFound, "deployment not found", handler.logger)
+		return
 	}
-	return hex.EncodeToString(secretBytes), nil
+	if err != nil {
+		handler.logger.Error("failed to get deployment for delete", "id", deploymentID, "error", err)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to retrieve deployment", handler.logger)
+		return
+	}
+
+	handler.logger.Info("deleting deployment",
+		"id", deploymentID,
+		"slug", deployment.Slug,
+	)
+
+	// ===== stop and remove the container.
+	// StopAndRemoveContainer is idempotent, returns nil if the container does not exist.
+	// this handles the case where the deployment failed before a container was started,
+	// or where the container was already manually removed.
+	containerName := "deploy-" + deployment.Slug
+	context := request.Context()
+
+	err = handler.deployerPipeline.CleanupContainer(context, containerName)
+	if err != nil {
+		handler.logger.Error("failed to remove container during delete",
+			"id", deploymentID,
+			"container", containerName,
+			"error", err,
+		)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to remove deployment container", handler.logger)
+		return
+	}
+
+	// ===== remove the static files from the asset storage root.
+	// os.RemoveAll is idempotent, returns nil if the path does not exist.
+	err = handler.deployerPipeline.CleanupFiles(deployment.Slug)
+	if err != nil {
+		handler.logger.Error("failed to remove deployment files during delete",
+			"id", deploymentID,
+			"slug", deployment.Slug,
+			"error", err,
+		)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to remove deployment files", handler.logger)
+		return
+	}
+
+	// ===== remove the log file (associated with the container)
+	// non-fatal if this fails, the deployment is already torn down,
+	// a leftover log file is not a functional issue.
+	if err := handler.deployerPipeline.CleanupLogFile(deployment.Slug); err != nil {
+		handler.logger.Warn("failed to remove deployment log file (non-fatal)",
+			"slug", deployment.Slug,
+			"error", err,
+		)
+	}
+
+	// ===== delete the database record (last)
+	// if any previous step failed and returned early, the record still exists,
+	// allowing the user to retry the delete request.
+	if err := handler.database.DeleteDeployment(deploymentID); err != nil {
+		handler.logger.Error("failed to delete deployment record",
+			"id", deploymentID,
+			"error", err,
+		)
+		writeErrorJsonAndLogIt(
+			responseWriter,
+			http.StatusInternalServerError,
+			"failed to delete deployment record", handler.logger,
+		)
+		return
+	}
+
+	handler.logger.Info("deployment deleted",
+		"id", deploymentID,
+		"slug", deployment.Slug,
+	)
+
+	// 204 No Content = the resource was successfully deleted, there is nothing to return.
+	// WriteHeader without Write sends an empty response body.
+	responseWriter.WriteHeader(http.StatusNoContent)
 }
