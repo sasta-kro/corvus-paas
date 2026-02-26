@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sasta-kro/corvus-paas/corvus-control-plane/build"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
 )
@@ -21,8 +22,9 @@ import (
 // adding a new dependency (eg, a docker client in a later phase) means
 // adding one field here, not changing every call site.
 type RouterDependencies struct {
-	Logger   *slog.Logger
-	Database *db.Database
+	Logger           *slog.Logger
+	Database         *db.Database
+	DeployerPipeline *build.DeployerPipeline
 }
 
 // CreateAndSetupRouter constructs the chi multiplexer, attaches middleware, constructs
@@ -53,7 +55,11 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	healthHandler := NewHealthHandler(dependencies.Logger)
 
 	// deployment handlers will need the database and logger
-	deploymentHander := NewDeploymentHandler(dependencies.Database, dependencies.Logger)
+	deploymentHandler := NewDeploymentHandler(
+		dependencies.Database,
+		dependencies.Logger,
+		dependencies.DeployerPipeline,
+	)
 
 	// --- route registration ---
 
@@ -67,11 +73,11 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	// This is api route group (basically having an `/api/` prefix (/api/health) for all API routes
 	// non-API routes like /health are kept outside this group intentionally.
 	router.Route("/api", func(apiRouter chi.Router) {
-		apiRouter.Get("/deployments", deploymentHander.ListDeployments)
+		apiRouter.Get("/deployments", deploymentHandler.ListDeployments)
 		// {id} is a placeholder for the actual id (like "happy-dog-1234"), `{id}` gets handled by chi library
-		apiRouter.Get("/deployments/{uuid}", deploymentHander.GetDeployment)
+		apiRouter.Get("/deployments/{uuid}", deploymentHandler.GetDeployment)
 
-		apiRouter.Post("/deployments", deploymentHander.CreateDeployment)
+		apiRouter.Post("/deployments", deploymentHandler.CreateDeployment)
 
 		// TODO redeploy and delete will be added in the future
 

@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/sasta-kro/corvus-paas/corvus-control-plane/build"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/models"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/util"
@@ -18,15 +20,22 @@ import (
 // DeploymentHandler holds the dependencies needed by all deployment endpoints.
 // the database is needed for every operation. the logger provides request-scoped context.
 type DeploymentHandler struct {
-	database *db.Database
-	logger   *slog.Logger
+	database         *db.Database
+	logger           *slog.Logger
+	deployerPipeline *build.DeployerPipeline
 }
 
 // NewDeploymentHandler constructs a DeploymentHandler with its required dependencies.
-func NewDeploymentHandler(database *db.Database, logger *slog.Logger) *DeploymentHandler {
+func NewDeploymentHandler(
+	database *db.Database,
+	logger *slog.Logger,
+	deployerPipeline *build.DeployerPipeline,
+) *DeploymentHandler {
+
 	return &DeploymentHandler{
-		database: database,
-		logger:   logger,
+		database:         database,
+		logger:           logger,
+		deployerPipeline: deployerPipeline,
 	}
 }
 
@@ -133,82 +142,124 @@ func (handler *DeploymentHandler) GetDeployment(responseWriter http.ResponseWrit
 }
 
 // CreateDeployment handles POST /api/deployments.
-// decodes and validates the request body,
-// generates a deployment ID and slug,
-// persists the record,
-// and returns the created deployment with status 201.
-// the actual build and container pipeline is NOT triggered here yet (TODO Phase 3).
-// this handler only creates the database record and returns it.
+// for source_type "zip" - reads a multipart form upload, validates fields,
+// creates the database record, and fires the deployerPipeline in a goroutine.
+// for source_type "github": creates the record only (deployerPipeline wired in Phase 4).
+// returns 201 immediately with status "deploying".
+// the client polls GET /api/deployments/:id to track progress to "live" or "failed".
+
 func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseWriter, request *http.Request) {
 
-	// --- Decode request body ---
+	// --- parse multipart form (needed for the zip upload and json in 1 http request)
 
-	// json.NewDecoder reads from the request body stream.
-	// Decode() populates the target struct and returns an error if:
-	//   - the body is not valid JSON
-	//   - a field type does not match (e.g. a string where a bool is expected)
-	//   - the body is empty
-	var requestBody createDeploymentRequest
-	if err := json.NewDecoder(request.Body).Decode(&requestBody); err != nil {
-		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "invalid JSON request body", handler.logger)
+	// ParseMultipartForm reads the incoming multipart body into memory up to maxMemory bytes.
+	// files larger than maxMemory are spilled to disk automatically by the standard library.
+	// 32MB is a reasonable upper limit for a zip containing a pre-built static site.
+	// large files (video, raw assets) should be excluded from the zip before uploading.
+	const maxMemoryBytes = 32 << 20 // 32MB  TODO maybe handle this better
+	errParseMultipartForm := request.ParseMultipartForm(maxMemoryBytes)
+	if errParseMultipartForm != nil {
+		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "failed to parse multipart form", handler.logger)
 		return
 	}
-	// why not make a json decoder helper function like the write function?
-	// cuz the function is just 3 lines and the error bubbling logic will be abstracted by 1 layer,
-	// so it is just not worth it
 
-	// --- Validate required fields ---
-	// why is the validation not a helper function?
-	// cuz it is too specific to this deployment fields that other tables/requests (if exists in the future)
-	// wont get to use it anyways.
-	// same reason for env vars, they are just too specific to a struct?
+	// --- Read form fields and validate step by step
 
-	// validation is intentionally explicit and readable rather than using a validation library.
-	// for a small set of fields, direct checks are clearer and produce more precise error messages than tag-based validators.
-	if requestBody.Name == "" {
+	var validatedRequest createDeploymentRequest
+	// request.FormValue reads a named field from the parsed multipart form.
+	// returns an empty string if the field is absent.
+
+	name := request.FormValue("name")
+	if name == "" {
 		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "name is required", handler.logger)
 		return
 	}
-	// not either of zip or github
-	if requestBody.SourceType != models.SourceZip && requestBody.SourceType != models.SourceGitHub {
+	validatedRequest.Name = name
+
+	rawSourceType := request.FormValue("source_type")
+	sourceType := models.SourceType(rawSourceType) // cast type
+	if sourceType != models.SourceZip && sourceType != models.SourceGitHub {
 		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "source_type must be 'zip' or 'github'", handler.logger)
 		return
 	}
-	// source github but no url
-	if requestBody.SourceType == models.SourceGitHub && (requestBody.GitHubURL == nil || *requestBody.GitHubURL == "") {
-		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "github_url is required when source_type is 'github'", handler.logger)
-		return
-	}
+	validatedRequest.SourceType = models.SourceType(rawSourceType)
 
-	// --- apply defaults ---
-
-	if requestBody.Branch == "" {
-		requestBody.Branch = "main"
-	}
-	if requestBody.OutputDirectory == "" {
-		requestBody.OutputDirectory = "."
-	}
-
-	// --- encode env vars ---
-
-	// EnvironmentVariables is received as map[string]string from JSON.
-	// the database stores it as a JSON string (SQLite has no map column type).
-	// encoding happens here so the model and db layers deal only with *string,
-	// not with maps or encoding logic.
-	var encodedEnvVars *string
-	if len(requestBody.EnvironmentVariables) > 0 {
-		envVarsBytes, err := json.Marshal(requestBody.EnvironmentVariables)
-		if err != nil {
-			handler.logger.Error("failed to encode env vars", "error", err)
-			writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to process env vars", handler.logger)
+	// only populate the pointer if source is github
+	// a nil pointer means "not provided", an empty string means "provided but blank".
+	var githubURL *string
+	if sourceType == models.SourceGitHub {
+		rawGitHubURL := request.FormValue("github_url")
+		if rawGitHubURL == "" {
+			writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "github_url is required when source_type is 'github'", handler.logger)
 			return
 		}
+		githubURL = &rawGitHubURL
+	}
+	validatedRequest.GitHubURL = githubURL // empty pointer will get passed if not source github
 
-		encodedString := string(envVarsBytes) // convert raw bytes to string
-		encodedEnvVars = &encodedString
-	} // if no env vars its fine
+	branch := request.FormValue("branch")
+	if branch == "" {
+		branch = "main"
+	}
+	validatedRequest.Branch = branch
 
-	// --- generate deployment identifiers ---
+	buildCommand := request.FormValue("build_command") // idk if i can even properly validate build commands
+	validatedRequest.BuildCommand = buildCommand
+
+	outputDirectory := request.FormValue("output_directory")
+	if outputDirectory == "" {
+		outputDirectory = "."
+	}
+	validatedRequest.OutputDirectory = outputDirectory
+
+	rawEnvironmentVariables := request.FormValue("environment_variables")
+	// env vars arrive as a JSON string in the form field.
+	// decode it into a map, then re-encode it as a JSON string for storage.
+	// this round-trip validates the JSON and normalises the format.
+	// TODO the env var doesn't really need to be in the createDeploymentRequest struct so i gotta do something with it.
+	var encodedEnvironmentVariables *string
+	if rawEnvironmentVariables != "" {
+		var envVarsMap map[string]string
+		err := json.Unmarshal([]byte(rawEnvironmentVariables), &envVarsMap)
+		if err != nil {
+			writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "environment_variables must be a valid JSON object", handler.logger)
+			return
+		}
+		if len(envVarsMap) > 0 {
+			envBytes, errMarshal := json.Marshal(envVarsMap)
+			if errMarshal != nil {
+				handler.logger.Error("failed to encode env vars", "error", errMarshal)
+				writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to process environment variables", handler.logger)
+				return
+			}
+			encoded := string(envBytes)
+			encodedEnvironmentVariables = &encoded
+		}
+	}
+
+	// form values are always strings. "true" -> true, anything else -> false.
+	rawAutoDeploy := request.FormValue("auto_deploy")
+	autoDeploy := rawAutoDeploy == "true"
+	validatedRequest.AutoDeploy = autoDeploy
+
+	// --- handle zip file upload ---
+
+	// FormFile retrieves the uploaded file for the given form field name.
+	// returns the file content as a multipart.File (implements io.Reader)
+	// and a FileHeader containing metadata (original filename, size, MIME type).
+	// returns an error if the field is absent or the upload failed.
+	var uploadedFile multipart.File
+	if validatedRequest.SourceType == models.SourceZip {
+		var formFileErr error
+		uploadedFile, _, formFileErr = request.FormFile("file")
+		if formFileErr != nil {
+			writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "file is required for zip source type", handler.logger)
+			return
+		}
+		defer uploadedFile.Close()
+	}
+
+	// --- generate deployment identifiers
 
 	deploymentID := uuid.New().String()
 	slug := util.GenerateSlug()
@@ -224,7 +275,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		return
 	}
 
-	// --- create/build deployment URL ---
+	// --- create/build deployment URL
 
 	// the URL is constructed from the slug and set immediately so the client
 	// knows the public address before the container is even started.
@@ -235,20 +286,20 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	deployment := &models.Deployment{
 		ID:                   deploymentID,
 		Slug:                 slug,
-		Name:                 requestBody.Name,
-		SourceType:           requestBody.SourceType,
-		GitHubURL:            requestBody.GitHubURL,
-		Branch:               requestBody.Branch,
-		BuildCommand:         requestBody.BuildCommand,
-		OutputDirectory:      requestBody.OutputDirectory,
-		EnvironmentVariables: encodedEnvVars,
+		Name:                 validatedRequest.Name,
+		SourceType:           validatedRequest.SourceType,
+		GitHubURL:            validatedRequest.GitHubURL,
+		Branch:               validatedRequest.Branch,
+		BuildCommand:         validatedRequest.BuildCommand,
+		OutputDirectory:      validatedRequest.OutputDirectory,
+		EnvironmentVariables: encodedEnvironmentVariables,
 		Status:               models.StatusDeploying,
 		URL:                  &deploymentURL,
 		WebhookSecret:        &webhookSecret,
-		AutoDeploy:           requestBody.AutoDeploy,
+		AutoDeploy:           validatedRequest.AutoDeploy,
 	}
 
-	// --- Write to database (persist to database)  ---
+	// --- Write to database (persist to database)
 	err = handler.database.InsertDeployment(deployment)
 	if err != nil {
 		handler.logger.Error("failed to insert deployment", "id", deploymentID, "error", err)
@@ -257,18 +308,29 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	}
 
 	// info logging
-	handler.logger.Info("deployment created",
+	handler.logger.Info("deployment record created",
 		"id", deploymentID,
 		"slug", slug,
-		"source_type", requestBody.SourceType,
-		"name", requestBody.Name,
+		"source_type", validatedRequest.SourceType,
+		"name", validatedRequest.Name,
 	)
 
-	// 201 Created is the correct status for a successful resource creation.
+	// --- trigger deploy deployerPipeline asynchronously
+
+	// the deployerPipeline runs in a goroutine so the HTTP handler returns immediately.
+	// the client receives 201 with status "deploying" and polls for updates.
+	// the goroutine captures the deployerPipeline pointer and deployment by value (safe since deployment is a pointer).
+	if validatedRequest.SourceType == models.SourceZip && uploadedFile != nil {
+		go handler.deployerPipeline.DeployZipUpload(deployment, uploadedFile)
+	}
+
+	// TODO github deployerPipeline is triggered here in Phase 4.
+
+	// 201 Created is the correct status for a successful resource creation
+	// (the record exists, the deployerPipeline is running.)
 	// 200 OK is for successful reads or updates, not for new resource creation.
-	// this responds with 201 AND a json of the full models.Deployment struct that just created
-	// (for the client to do frontend logic and display)
 	writeJsonAndRespond(responseWriter, http.StatusCreated, deployment)
+	// (response is for the client to do frontend logic and display)
 }
 
 // generateWebhookSecret returns a cryptographically secure random hex string
