@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/docker"
@@ -112,85 +111,64 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 
 	defer uploadedFile.Close() // why here tho???
 
-	// deployerPipelineLog() is a helper that generates two log (simultaneously), a raw text entry in
-	// a specific deployment log file and a structured log entry in the application’s standard output.
-	// Used throughout the deployerPipeline to record each step's outcome.
-	deployerPipelineLog := func(format string, args ...any) {
-		line := fmt.Sprintf("[%s] %s\n", time.Now().UTC().Format(time.RFC3339), fmt.Sprintf(format, args...))
-
-		// prefixes the slog with this pipeline name and slug of the deployment
-		deployerPipeline.logger.Info("deployerPipeline", "slug", deployment.Slug, "msg", fmt.Sprintf(format, args...))
-		if logFile != nil {
-			logFile.WriteString(line) // nolint:errcheck -- log write failures are non-fatal (can ignore ig)
-		}
+	// setting up the helper logger struct to log to both slog and log file
+	pipelineLogger := &deployerPipelineLogger{
+		pipeline:   deployerPipeline,
+		deployment: deployment,
+		logFile:    logFile,
 	}
 
-	// failedDeploymentStatusUpdateAndLogIt() is a helper that updates the status to "failed" and logs the reason.
-	// Called at any step that cannot be recovered from.
-	failedDeploymentStatusUpdateAndLogIt := func(reason string, err error) {
-		deployerPipelineLog("FAILED: %s: %v", reason, err)
-
-		// this just updates the failed deployment's status to 'failed' in the db
-		dbErr := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusFailed)
-		if dbErr != nil {
-			deployerPipeline.logger.Error("failed to update status to failed",
-				"id", deployment.ID,
-				"error", dbErr,
-			) // lmao cant do anything about it if the status change fails
-		}
-	}
-
-	deployerPipelineLog("deployerPipeline started for deployment %q (slug: %s)", deployment.Name, deployment.Slug)
+	pipelineLogger.logInfo("deployerPipeline started for deployment %q (slug: %s)", deployment.Name, deployment.Slug)
 
 	// ===== Set status as deploying
 	// status was set to "deploying" at record creation. refreshing here again
 	// handles the redeploy case where a previous run left the status as "live" or "failed".
 	errUpdateStatus := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusDeploying)
 	if errUpdateStatus != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to update status to deploying", errUpdateStatus)
+		pipelineLogger.logFailureAndUpdateStatus("failed to update status to deploying", errUpdateStatus)
 		return
 	}
 
-	// ===== Write the uploaded zip bytes to a temp file on disk.
+	// ===== Write the uploaded zip bytes to a temp file on disk
 	// os.CreateTemp() is a build in lib function creates a new FILE in the OS temp directory with a unique name.
 	// the file is used as the source for zip extraction and deleted after extraction.
 	// this is just created anywhere for now, in the next step, this file will be put in a proper temp working dir
-	tmpFileForZipExtraction, errCreateTempFile := os.CreateTemp("", "corvus-upload-*.zip") // `*` is where the random string will be
+	tempFileForZipExtraction, errCreateTempFile := os.CreateTemp("", "corvus-upload-*.zip") // `*` is where the random string will be
 	if errCreateTempFile != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to create temp file for zip upload", errCreateTempFile)
+		pipelineLogger.logFailureAndUpdateStatus("failed to create temp file for zip upload", errCreateTempFile)
 		return
 	}
 	// defer removal of the temp zip file so it is cleaned up on any exit path.
 	// the file is closed inside the copy block below before extraction begins.
-	defer os.Remove(tmpFileForZipExtraction.Name())
+	defer os.Remove(tempFileForZipExtraction.Name())
 
-	deployerPipelineLog("writing uploaded zip to temp file: %s", tmpFileForZipExtraction.Name())
+	pipelineLogger.logInfo("writing uploaded zip to temp file: %s", tempFileForZipExtraction.Name())
 
 	// io.Copy streams the uploaded bytes from the request body into the temp file.
 	// this avoids loading the entire zip into memory.
-	_, errCopyUploadedZipFileToDisk := io.Copy(tmpFileForZipExtraction, uploadedFile)
+	_, errCopyUploadedZipFileToDisk := io.Copy(tempFileForZipExtraction, uploadedFile)
 	if errCopyUploadedZipFileToDisk != nil {
-		tmpFileForZipExtraction.Close()
-		failedDeploymentStatusUpdateAndLogIt("failed to write uploaded zip to disk", errCopyUploadedZipFileToDisk)
+		tempFileForZipExtraction.Close()
+		pipelineLogger.logFailureAndUpdateStatus("failed to write uploaded zip to disk", errCopyUploadedZipFileToDisk)
 		return
 	}
 	// close the file before passing its path to the zip extractor.
 	// the extractor opens it fresh for reading. Leaving it open for writing
 	// would cause a file descriptor conflict on some OS/filesystem combinations.
-	tmpFileForZipExtraction.Close()
+	tempFileForZipExtraction.Close()
 
-	// ===== Extracting the zip to a temp working directory.
+	// ===== Extracting the zip to a temp working directory
 	// the working directory name includes the deployment ID for traceability.
 	tempWorkingDir := filepath.Join(os.TempDir(), "corvus-build-"+deployment.ID)
 	defer os.RemoveAll(tempWorkingDir) // clean up the working directory on any exit path
 
-	deployerPipelineLog("extracting zip to working directory: %s", tempWorkingDir)
-	errExtractingZipUpload := ExtractZipUpload(tmpFileForZipExtraction.Name(), tempWorkingDir)
+	pipelineLogger.logInfo("extracting zip to working directory: %s", tempWorkingDir)
+	errExtractingZipUpload := ExtractZipUpload(tempFileForZipExtraction.Name(), tempWorkingDir)
 	if errExtractingZipUpload != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to extract zip archive", errExtractingZipUpload)
+		pipelineLogger.logFailureAndUpdateStatus("failed to extract zip archive", errExtractingZipUpload)
 		return
 	}
-	deployerPipelineLog("zip extracted successfully")
+	pipelineLogger.logInfo("zip extracted successfully")
 
 	// ===== Resolve the output directory within the extracted content
 	// OutputDirectory is user-provided (eg. "dist", "build", ".").
@@ -202,14 +180,14 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 	// a clear failure message rather than a confusing Docker bind-mount error.
 	_, errOutputDirDoesntExist := os.Stat(sourceCodeDirectory)
 	if errors.Is(errOutputDirDoesntExist, os.ErrNotExist) {
-		failedDeploymentStatusUpdateAndLogIt(
+		pipelineLogger.logFailureAndUpdateStatus(
 			fmt.Sprintf("output directory %q not found inside the zip archive", deployment.OutputDirectory),
 			errOutputDirDoesntExist,
 		)
 		return
 	}
 	if errOutputDirDoesntExist != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to stat output directory", errOutputDirDoesntExist)
+		pipelineLogger.logFailureAndUpdateStatus("failed to stat output directory", errOutputDirDoesntExist)
 		return
 	}
 
@@ -218,27 +196,27 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 	// working directories are ephemeral (temp). the asset storage root persists across deploys.
 	destDirInAssetStorageRoot := filepath.Join(deployerPipeline.assetStorageRoot, deployment.Slug)
 
-	deployerPipelineLog("copying output directory to asset storage root: %s -> %s", sourceCodeDirectory, destDirInAssetStorageRoot)
+	pipelineLogger.logInfo("copying output directory to asset storage root: %s -> %s", sourceCodeDirectory, destDirInAssetStorageRoot)
 	errCopySourceCodeDir := util.CopyDirectory(sourceCodeDirectory, destDirInAssetStorageRoot)
 	if errCopySourceCodeDir != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to copy output directory to asset storage root", errCopySourceCodeDir)
+		pipelineLogger.logFailureAndUpdateStatus("failed to copy output directory to asset storage root", errCopySourceCodeDir)
 		return
 	}
-	deployerPipelineLog("files copied to asset storage root")
+	pipelineLogger.logInfo("files copied to asset storage root")
 
 	// ===== Stop and remove any existing container for this slug
 	// this is a no-op for new deployments (no container exists yet).
 	// for redeployments, it replaces the currently running container
 	containerName := "deploy-" + deployment.Slug
-	deployerPipelineLog("stopping existing container if present: %s", containerName)
+	pipelineLogger.logInfo("stopping existing container if present: %s", containerName)
 	errStopAndRemoveContainer := deployerPipeline.dockerClient.StopAndRemoveContainer(deployContext, containerName)
 	if errStopAndRemoveContainer != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to remove existing container", errStopAndRemoveContainer)
+		pipelineLogger.logFailureAndUpdateStatus("failed to remove existing container", errStopAndRemoveContainer)
 		return
 	}
 
 	// ===== Starting the Nginx container
-	deployerPipelineLog("starting nginx container: %s", containerName)
+	pipelineLogger.logInfo("starting nginx container: %s", containerName)
 	errCreateAndStartNginxContainer := deployerPipeline.dockerClient.CreateAndStartNginxContainer(deployContext, docker.NginxContainerConfig{
 		ContainerName:       containerName,
 		Slug:                deployment.Slug,
@@ -246,10 +224,10 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 		TraefikNetwork:      deployerPipeline.traefikNetwork,
 	})
 	if errCreateAndStartNginxContainer != nil {
-		failedDeploymentStatusUpdateAndLogIt("failed to start nginx container", errCreateAndStartNginxContainer)
+		pipelineLogger.logFailureAndUpdateStatus("failed to start nginx container", errCreateAndStartNginxContainer)
 		return
 	}
-	deployerPipelineLog("nginx container started successfully")
+	pipelineLogger.logInfo("nginx container started successfully")
 
 	// ===== Updating container status to live
 	errUpdateStatusToLive := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusLive)
@@ -265,9 +243,96 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 		return
 	}
 
-	deployerPipelineLog("deployment complete. site is live at http://%s.localhost", deployment.Slug)
+	pipelineLogger.logInfo("deployment complete. site is live at http://%s.localhost", deployment.Slug)
 	// dw about the url being http and https since this is just for internal routing between traefik and docker
 	deployerPipeline.logger.Info("deployment live",
+		"id", deployment.ID,
+		"slug", deployment.Slug,
+		"url", "http://"+deployment.Slug+".localhost",
+	)
+}
+
+// RedeployExisting re-creates the Nginx container for an existing deployment
+// using the files already present in the asset storage root.
+// used for zip redeployments where the original upload no longer exists,
+// and the only copy of the static files is the deployed directory.
+// for github source type, the full clone+build pipeline runs instead (Phase 4).
+//
+// this method is designed to be called as a goroutine from the HTTP handler.
+func (deployerPipeline *DeployerPipeline) RedeployExisting(deployment *models.Deployment) {
+	redeployContext := context.Background()
+
+	logFile, errOpenLogFile := deployerPipeline.openLogFile(deployment.Slug)
+	if errOpenLogFile != nil {
+		deployerPipeline.logger.Error("failed to open deployment log file for redeploy",
+			"slug", deployment.Slug,
+			"error", errOpenLogFile,
+		)
+	}
+	if logFile != nil {
+		defer logFile.Close()
+	}
+
+	// setting up the helper logger struct to log to both slog and log file
+	pipelineLogger := &deployerPipelineLogger{
+		pipeline:   deployerPipeline,
+		deployment: deployment,
+		logFile:    logFile,
+	}
+
+	pipelineLogger.logInfo("redeploy started for deployment %q (slug: %s)", deployment.Name, deployment.Slug)
+
+	// set status to deploying
+	if err := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusDeploying); err != nil {
+		pipelineLogger.logFailureAndUpdateStatus("failed to update status to deploying", err)
+		return
+	}
+
+	// verify the extracted zip files still exist on disk
+	deploymentDir := filepath.Join(deployerPipeline.assetStorageRoot, deployment.Slug)
+	if _, err := os.Stat(deploymentDir); os.IsNotExist(err) {
+		pipelineLogger.logFailureAndUpdateStatus("deployment files not found on disk, cannot redeploy", err)
+		return
+	}
+
+	// stop and remove the old container
+	containerName := "deploy-" + deployment.Slug
+	pipelineLogger.logInfo("stopping existing container: %s", containerName)
+	errRemoveContainer := deployerPipeline.dockerClient.StopAndRemoveContainer(redeployContext, containerName)
+	if errRemoveContainer != nil {
+		pipelineLogger.logFailureAndUpdateStatus("failed to remove existing container", errRemoveContainer)
+		return
+	}
+
+	// start a new container pointing to the same files
+	pipelineLogger.logInfo("starting nginx container: %s", containerName)
+	errStartNginxContainer := deployerPipeline.dockerClient.CreateAndStartNginxContainer(
+		redeployContext,
+		docker.NginxContainerConfig{
+			ContainerName:       containerName,
+			Slug:                deployment.Slug,
+			HostSourceDirectory: deploymentDir,
+			TraefikNetwork:      deployerPipeline.traefikNetwork,
+		},
+	)
+	if errStartNginxContainer != nil {
+		pipelineLogger.logFailureAndUpdateStatus("failed to start nginx container", errStartNginxContainer)
+		return
+	}
+	pipelineLogger.logInfo("nginx container started successfully")
+
+	// update status to live
+	if err := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusLive); err != nil {
+		deployerPipeline.logger.Error("container is live but failed to update status after redeploy",
+			"id", deployment.ID,
+			"slug", deployment.Slug,
+			"error", err,
+		)
+		return
+	}
+
+	pipelineLogger.logInfo("redeploy complete. site is live at http://%s.localhost", deployment.Slug)
+	deployerPipeline.logger.Info("redeploy live",
 		"id", deployment.ID,
 		"slug", deployment.Slug,
 		"url", "http://"+deployment.Slug+".localhost",
