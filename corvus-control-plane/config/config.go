@@ -107,7 +107,7 @@ func LoadAppConfig() *AppConfig {
 		Port:   getEnv("PORT", "8080"),
 		DBPath: getEnv("DB_PATH", "./corvus.db"),
 		// platform and server resources should be in `/srv` cuz of FHS compliance and SELinux context avoidance
-		// (can have permission problem with SELinux in $HOME)
+		// (can have permission problem with SELinux in $HOME, but i can also have it in ./data/deployments if i want self contained)
 		AssetStorageRoot: getEnv("ASSET_STORAGE_ROOT", "/srv/corvus-paas/deployments"),
 		LogRoot:          getEnv("LOG_ROOT", "/srv/corvus-paas/logs"),
 		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
