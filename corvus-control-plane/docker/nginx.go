@@ -82,7 +82,7 @@ type NginxContainerConfig struct {
 // This is the function that makes a deployment "live": once this returns without error,
 // Traefik has already picked up the new routing rule and the site is reachable.
 // args: need context cuz the underlying docker sdk methods require context, config struct is just to organize actual args
-func (dockerClient *Client) CreateAndStartNginxContainer(context context.Context, config NginxContainerConfig) error {
+func (dockerClient *DockerClient) CreateAndStartNginxContainer(context context.Context, config NginxContainerConfig) error {
 	// --- pull image (with helper func) ---
 
 	// ImagePull returns a stream of JSON progress events (one line per layer).
@@ -250,7 +250,7 @@ func (dockerClient *Client) CreateAndStartNginxContainer(context context.Context
 // the function can handle when a container do not exist. If no container with
 // the given name is found, it returns nil (NOT an error), because the desired
 // state (container gone) is already satisfied.
-func (dockerClient *Client) StopAndRemoveContainer(context context.Context, containerName string) error {
+func (dockerClient *DockerClient) StopAndRemoveContainer(context context.Context, containerName string) error {
 	// ContainerList with a name filter finds containers by name.
 	// filters.NewArgs (from docker) builds the filter argument the SDK expects.
 	// "name" filter matches containers whose name contains the given string,
@@ -360,7 +360,7 @@ func (dockerClient *Client) StopAndRemoveContainer(context context.Context, cont
 // discarding the output with io.Discard avoids storing progress text in memory,
 // since the caller only needs to know if the pull succeeded or failed, not the progress detail.
 // in v2, TODO: this stream can be forwarded to the deployment log file for visibility.
-func (dockerClient *Client) pullImageIfNotPresent(context context.Context, imageName string) error {
+func (dockerClient *DockerClient) pullImageIfNotPresent(context context.Context, imageName string) error {
 	dockerClient.logger.Info("pulling docker image", "image", imageName)
 
 	/*

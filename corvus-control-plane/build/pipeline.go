@@ -23,7 +23,7 @@ import (
 // Each Deploy() call runs independently, the DeployerPipeline itself holds no per-deployment state.
 type DeployerPipeline struct {
 	database     *db.Database
-	dockerClient *docker.Client
+	dockerClient *docker.DockerClient
 	logger       *slog.Logger
 
 	// assetStorageRoot is the base directory on the host where static files are stored.
@@ -53,7 +53,7 @@ type DeployerPipelineConfig struct {
 // NewDeployerPipeline constructs a DeployerPipeline with its required dependencies.
 func NewDeployerPipeline(
 	database *db.Database,
-	dockerClient *docker.Client,
+	dockerClient *docker.DockerClient,
 	logger *slog.Logger,
 	config DeployerPipelineConfig,
 ) *DeployerPipeline {

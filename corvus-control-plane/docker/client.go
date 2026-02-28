@@ -25,21 +25,21 @@ import (
 	 * Example: dockerSDKclient.NewClientWithOpts()
 	 */)
 
-// Client (docker.Client) is a custom struct that wraps the Docker SDK client with a logger.
+// DockerClient (docker.DockerClient) is a custom struct that wraps the Docker SDK client with a logger.
 // the SDK client itself manages the connection to the Docker daemon over the Unix socket.
-// it is safe to share a single Client across goroutines cuz the SDK handles concurrency internally.
-type Client struct {
+// it is safe to share a single DockerClient across goroutines cuz the SDK handles concurrency internally.
+type DockerClient struct {
 	sdk    *dockerSDKclient.Client
 	logger *slog.Logger
 }
 
-// NewClient `docker.NewClient()` constructs a Docker Client (my custom defined struct),
+// NewClient `docker.NewClient()` constructs a Docker DockerClient (my custom defined struct),
 // then connects to the Docker daemon using the
 // default socket path (/var/run/docker.sock), and performs a ping to verify
 // the connection is live before returning.
 // returning an error here should cause main.go to exit immediately cuz
 // if the Docker daemon is unreachable, the platform cannot function.
-func NewClient(logger *slog.Logger) (*Client, error) {
+func NewClient(logger *slog.Logger) (*DockerClient, error) {
 	// > client.NewClientWithOpts is a constructor that initializes the SDK client.
 	// > client.FromEnv reads $DOCKER_HOST, $DOCKER_TLS_VERIFY, $DOCKER_CERT_PATH env variables from
 	// the OS environment. When those are not set (local dev, direct socket),
@@ -59,12 +59,12 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 	}
 
 	// creating the custom client (which is just a wrapper for sdk client and logger)
-	corvusDockerClient := &Client{
+	corvusDockerClient := &DockerClient{
 		sdk:    sdkClient,
 		logger: logger,
 	}
 	// a `defer corvusDockerClient.sdk.Close()` is not placed here cuz or else if will
-	// immediately close after a Client struct/obj is created (which is silly)
+	// immediately close after a DockerClient struct/obj is created (which is silly)
 
 	/*
 		The 'context' package is the standard Go mechanism for controlling
@@ -115,9 +115,9 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 
 // --- helper functions
 
-// ping (`docker.Client.ping()`) sends a lightweight ping request to the Docker daemon.
+// ping (`docker.DockerClient.ping()`) sends a lightweight ping request to the Docker daemon.
 // used at startup to verify connectivity before the server begins accepting requests.
-func (dockerClient *Client) ping(context context.Context) error {
+func (dockerClient *DockerClient) ping(context context.Context) error {
 	_, err := dockerClient.sdk.Ping(context) // ping values are not needed so, ignored with `_`
 	if err != nil {
 		return fmt.Errorf("docker ping failed: %w", err)
@@ -127,7 +127,7 @@ func (dockerClient *Client) ping(context context.Context) error {
 
 // Close releases the underlying Docker SDK client connection.
 // should be deferred in main.go or a caller immediately after NewClient returns successfully.
-func (dockerClient *Client) Close() error {
+func (dockerClient *DockerClient) Close() error {
 	// damn, this is a smart way to do it. calling the wrapped function on a return block.
 	// this makes the wrapper acts like it is directly returning the error from the wrapped function.
 	return dockerClient.sdk.Close()
