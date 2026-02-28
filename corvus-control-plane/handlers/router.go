@@ -81,6 +81,8 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 
 		apiRouter.Delete("/deployments/{uuid}", deploymentHandler.DeleteDeployment)
 
+		apiRouter.Post("/deployments/{uuid}/redeploy", deploymentHandler.RedeployDeployment)
+
 		// TODO redeploy and delete will be added in the future
 
 		// placeholder to confirm the route group compiles correctly

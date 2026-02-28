@@ -7,7 +7,6 @@ package build
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +16,6 @@ import (
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/db"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/docker"
 	"github.com/sasta-kro/corvus-paas/corvus-control-plane/models"
-	"github.com/sasta-kro/corvus-paas/corvus-control-plane/util"
 )
 
 // DeployerPipeline holds the dependencies needed to run a deployment.
@@ -78,11 +76,7 @@ func NewDeployerPipeline(
 //   - set status to "deploying" (already set at creation, but refreshed here for redeploys)
 //   - write uploaded zip bytes to a temp file on disk
 //   - extract the zip to a temp working directory
-//   - copy the output subdirectory to the asset storage root (to <assetStorageRoot>/<thisDeploymentDir>/)
-//   - stop and remove any existing container for this slug (handles redeployment)
-//   - start nginx container with the asset storage directory bind-mounted
-//   - update status to "live"
-//   - clean up temp files
+//   - deployToNginx (helper function that is the same for both zip and github, thus extracted to helper)
 func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 	deployment *models.Deployment,
 	uploadedFile io.ReadCloser,
@@ -170,96 +164,24 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 	}
 	pipelineLogger.logInfo("zip extracted successfully")
 
-	// ===== Resolve the output directory within the extracted content
-	// OutputDirectory is user-provided (eg. "dist", "build", ".").
-	// filepath.Join() also handles the "." case correctly: Join(tempWorkingDir, ".") == tempWorkingDir.
-	sourceCodeDirectory := filepath.Join(tempWorkingDir, deployment.OutputDirectory)
-
-	// Verifying if the output directory actually exists inside the extracted content.
-	// a wrong OutputDirectory value is a very common user error and should produce
-	// a clear failure message rather than a confusing Docker bind-mount error.
-	_, errOutputDirDoesntExist := os.Stat(sourceCodeDirectory)
-	if errors.Is(errOutputDirDoesntExist, os.ErrNotExist) {
-		pipelineLogger.logFailureAndUpdateStatus(
-			fmt.Sprintf("output directory %q not found inside the zip archive", deployment.OutputDirectory),
-			errOutputDirDoesntExist,
-		)
-		return
-	}
-	if errOutputDirDoesntExist != nil {
-		pipelineLogger.logFailureAndUpdateStatus("failed to stat output directory", errOutputDirDoesntExist)
-		return
-	}
-
-	// ===== Copying the output directory to the asset storage root.
-	// the asset storage root is the stable location bind-mounted into the Nginx container.
-	// working directories are ephemeral (temp). the asset storage root persists across deploys.
-	destDirInAssetStorageRoot := filepath.Join(deployerPipeline.assetStorageRoot, deployment.Slug)
-
-	pipelineLogger.logInfo("copying output directory to asset storage root: %s -> %s", sourceCodeDirectory, destDirInAssetStorageRoot)
-	errCopySourceCodeDir := util.CopyDirectory(sourceCodeDirectory, destDirInAssetStorageRoot)
-	if errCopySourceCodeDir != nil {
-		pipelineLogger.logFailureAndUpdateStatus("failed to copy output directory to asset storage root", errCopySourceCodeDir)
-		return
-	}
-	pipelineLogger.logInfo("files copied to asset storage root")
-
-	// ===== Stop and remove any existing container for this slug
-	// this is a no-op for new deployments (no container exists yet).
-	// for redeployments, it replaces the currently running container
-	containerName := "deploy-" + deployment.Slug
-	pipelineLogger.logInfo("stopping existing container if present: %s", containerName)
-	errStopAndRemoveContainer := deployerPipeline.dockerClient.StopAndRemoveContainer(deployContext, containerName)
-	if errStopAndRemoveContainer != nil {
-		pipelineLogger.logFailureAndUpdateStatus("failed to remove existing container", errStopAndRemoveContainer)
-		return
-	}
-
-	// ===== Starting the Nginx container
-	pipelineLogger.logInfo("starting nginx container: %s", containerName)
-	errCreateAndStartNginxContainer := deployerPipeline.dockerClient.CreateAndStartNginxContainer(deployContext, docker.NginxContainerConfig{
-		ContainerName:       containerName,
-		Slug:                deployment.Slug,
-		HostSourceDirectory: destDirInAssetStorageRoot,
-		TraefikNetwork:      deployerPipeline.traefikNetwork,
-	})
-	if errCreateAndStartNginxContainer != nil {
-		pipelineLogger.logFailureAndUpdateStatus("failed to start nginx container", errCreateAndStartNginxContainer)
-		return
-	}
-	pipelineLogger.logInfo("nginx container started successfully")
-
-	// ===== Updating container status to live
-	errUpdateStatusToLive := deployerPipeline.database.UpdateStatus(deployment.ID, models.StatusLive)
-	if errUpdateStatusToLive != nil {
-		// the container is running but the DB update failed.
-		// log the error but do not fail the deployment, the site is actually live.
-		// the status inconsistency will be visible in the API response.
-		deployerPipeline.logger.Error("container is live but failed to update status to live",
-			"id", deployment.ID,
-			"slug", deployment.Slug,
-			"error", errUpdateStatusToLive,
-		)
-		return
-	}
-
-	pipelineLogger.logInfo("deployment complete. site is live at http://%s.localhost", deployment.Slug)
-	// dw about the url being http and https since this is just for internal routing between traefik and docker
-	deployerPipeline.logger.Info("deployment live",
-		"id", deployment.ID,
-		"slug", deployment.Slug,
-		"url", "http://"+deployment.Slug+".localhost",
+	deployerPipeline.deployToNginx(
+		deployContext,
+		deployment,
+		tempWorkingDir,
+		pipelineLogger,
 	)
 }
 
-// RedeployExisting re-creates the Nginx container for an existing deployment
+// RedeployExistingZip re-creates the Nginx container for an existing deployment
 // using the files already present in the asset storage root.
 // used for zip redeployments where the original upload no longer exists,
 // and the only copy of the static files is the deployed directory.
 // for github source type, the full clone+build pipeline runs instead (Phase 4).
 //
-// this method is designed to be called as a goroutine from the HTTP handler.
-func (deployerPipeline *DeployerPipeline) RedeployExisting(deployment *models.Deployment) {
+// This method doesn't use deployToNginx helper because it does not copy files (they already exist),
+// so it only shares the container stop/start/status update, which is only three steps
+// and not worth extracting into a separate method.
+func (deployerPipeline *DeployerPipeline) RedeployExistingZip(deployment *models.Deployment) {
 	redeployContext := context.Background()
 
 	logFile, errOpenLogFile := deployerPipeline.openLogFile(deployment.Slug)
@@ -279,7 +201,6 @@ func (deployerPipeline *DeployerPipeline) RedeployExisting(deployment *models.De
 		deployment: deployment,
 		logFile:    logFile,
 	}
-
 	pipelineLogger.logInfo("redeploy started for deployment %q (slug: %s)", deployment.Name, deployment.Slug)
 
 	// set status to deploying

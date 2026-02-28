@@ -430,3 +430,50 @@ func (handler *DeploymentHandler) DeleteDeployment(responseWriter http.ResponseW
 	// WriteHeader without Write sends an empty response body.
 	responseWriter.WriteHeader(http.StatusNoContent)
 }
+
+// RedeployDeployment handles POST /api/deployments/:uuid/redeploy.
+// fetches the existing deployment, validates it can be redeployed,
+// and triggers the appropriate pipeline in a goroutine.
+// returns 202 Accepted immediately (the redeploy runs asynchronously).
+// the client polls GET /api/deployments/:uuid to track the status transition
+// from "deploying" back to "live" or "failed".
+func (handler *DeploymentHandler) RedeployDeployment(responseWriter http.ResponseWriter, request *http.Request) {
+	deploymentID := chi.URLParam(request, "uuid")
+
+	deployment, err := handler.database.GetDeployment(deploymentID)
+	if errors.Is(err, db.ErrRecordNotFound) {
+		writeErrorJsonAndLogIt(responseWriter, http.StatusNotFound, "deployment not found", handler.logger)
+		return
+	}
+	if err != nil {
+		handler.logger.Error("failed to get deployment for redeploy", "id", deploymentID, "error", err)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to retrieve deployment", handler.logger)
+		return
+	}
+
+	handler.logger.Info("redeploy requested",
+		"id", deploymentID,
+		"slug", deployment.Slug,
+		"source_type", deployment.SourceType,
+	)
+
+	// trigger the pipeline based on source type.
+	// zip redeployments use the existing files on disk.
+	// github redeployments will re-clone and rebuild (Phase 4, not wired yet).
+	switch deployment.SourceType {
+	case models.SourceZip:
+		go handler.deployerPipeline.RedeployExistingZip(deployment)
+	case models.SourceGitHub:
+		// TODO: add go handler.deployerPipeline.DeployGitHub(deployment)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusNotImplemented, "github redeploy not yet implemented", handler.logger)
+		return
+	default:
+		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "unknown source type", handler.logger)
+		return
+	}
+
+	// 202 Accepted: the request has been accepted for processing, but the processing
+	// is not complete. the client should poll the deployment status.
+	// return the deployment object so the client has the ID and slug to poll with.
+	writeJsonAndRespond(responseWriter, http.StatusAccepted, deployment)
+}
