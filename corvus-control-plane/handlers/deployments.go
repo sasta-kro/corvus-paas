@@ -251,22 +251,6 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	autoDeploy := rawAutoDeploy == "true"
 	validatedRequest.AutoDeploy = autoDeploy
 
-	// ==== compute expiration based on FriendCode
-	// the friend_code field is optional. if provided and matches the configured
-	// code, the deployment gets an extended TTL. otherwise it gets the default TTL.
-	// if no friend code is configured on the backend, all deployments get the default TTL.
-	friendCode := request.FormValue("friend_code")
-	ttlMinutes := handler.defaultTTLMinutes
-	if handler.friendCode != "" && friendCode == handler.friendCode {
-		ttlMinutes = handler.extendedTTLMinutes
-	}
-
-	var expiresAt *time.Time
-	if ttlMinutes > 0 {
-		t := time.Now().UTC().Add(time.Duration(ttlMinutes) * time.Minute)
-		expiresAt = &t
-	}
-
 	// ===== handle zip file upload
 
 	// FormFile retrieves the uploaded file for the given form field name.
@@ -301,6 +285,23 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		handler.logger.Error("failed to generate webhook secret", "error", err)
 		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to generate deployment credentials", handler.logger)
 		return
+	}
+
+	// ==== compute expiration based on FriendCode
+	// the friend_code field is optional. if provided and matches the configured
+	// code, the deployment gets an extended TTL. otherwise it gets the default TTL.
+	// if no friend code is configured on the backend, all deployments get the default TTL.
+	friendCode := request.FormValue("friend_code")
+	ttlMinutes := handler.defaultTTLMinutes
+	if handler.friendCode != "" && friendCode == handler.friendCode {
+		handler.logger.Info("friend code activated", "slug", slug, "deploymentID", deploymentID)
+		ttlMinutes = handler.extendedTTLMinutes
+	}
+
+	var expiresAt *time.Time
+	if ttlMinutes > 0 {
+		t := time.Now().UTC().Add(time.Duration(ttlMinutes) * time.Minute)
+		expiresAt = &t
 	}
 
 	// ===== create/build deployment URL
