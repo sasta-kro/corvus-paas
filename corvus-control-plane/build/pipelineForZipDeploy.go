@@ -7,7 +7,6 @@ package build
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -112,7 +111,7 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 		logFile:    logFile,
 	}
 
-	pipelineLogger.logInfo("deployerPipeline started for deployment %q (slug: %s)", deployment.Name, deployment.Slug)
+	pipelineLogger.logInfo("Pipeline started for zip deployment %q (slug: %s)", deployment.Name, deployment.Slug)
 
 	// ===== Set status as deploying
 	// status was set to "deploying" at record creation. refreshing here again
@@ -123,41 +122,49 @@ func (deployerPipeline *DeployerPipeline) DeployZipUpload(
 		return
 	}
 
-	// ===== Write the uploaded zip bytes to a temp file on disk
-	// os.CreateTemp() is a build in lib function creates a new FILE in the OS temp directory with a unique name.
-	// the file is used as the source for zip extraction and deleted after extraction.
-	// this is just created anywhere for now, in the next step, this file will be put in a proper temp working dir
-	tempFileForZipExtraction, errCreateTempFile := os.CreateTemp("", "corvus-upload-*.zip") // `*` is where the random string will be
-	if errCreateTempFile != nil {
-		pipelineLogger.logFailureAndUpdateStatus("failed to create temp file for zip upload", errCreateTempFile)
+	// ===== Write the uploaded zip bytes to a temp zip file on disk
+	// os.CreateTemp() is a build in lib function creates a new zip FILE in the OS temp directory with a unique name.
+	// this zip file is used as the source for zip extraction and deleted after extraction.
+	// this is just created anywhere for now cuz in the next step, this file will be put in a proper temp working dir
+	tempZipFileForExtraction, errCreateTempZipFile := os.CreateTemp("", "corvus-upload-*.zip") // `*` is where the random string will be
+	if errCreateTempZipFile != nil {
+		pipelineLogger.logFailureAndUpdateStatus("failed to create temp zip file for zip upload", errCreateTempZipFile)
 		return
 	}
 	// defer removal of the temp zip file so it is cleaned up on any exit path.
 	// the file is closed inside the copy block below before extraction begins.
-	defer os.Remove(tempFileForZipExtraction.Name())
+	defer os.Remove(tempZipFileForExtraction.Name())
 
-	pipelineLogger.logInfo("writing uploaded zip to temp file: %s", tempFileForZipExtraction.Name())
+	pipelineLogger.logInfo("writing uploaded zip to temp file: %s", tempZipFileForExtraction.Name())
 
-	// io.Copy streams the uploaded bytes from the request body into the temp file.
+	// io.Copy streams the uploaded bytes from the request body into the temp zip file.
 	// this avoids loading the entire zip into memory.
-	_, errCopyUploadedZipFileToDisk := io.Copy(tempFileForZipExtraction, uploadedFile)
+	_, errCopyUploadedZipFileToDisk := io.Copy(tempZipFileForExtraction, uploadedFile)
 	if errCopyUploadedZipFileToDisk != nil {
-		tempFileForZipExtraction.Close()
+		tempZipFileForExtraction.Close()
 		pipelineLogger.logFailureAndUpdateStatus("failed to write uploaded zip to disk", errCopyUploadedZipFileToDisk)
 		return
 	}
 	// close the file before passing its path to the zip extractor.
 	// the extractor opens it fresh for reading. Leaving it open for writing
 	// would cause a file descriptor conflict on some OS/filesystem combinations.
-	tempFileForZipExtraction.Close()
+	tempZipFileForExtraction.Close()
 
 	// ===== Extracting the zip to a temp working directory
 	// the working directory name includes the deployment ID for traceability.
 	tempWorkingDir := filepath.Join(os.TempDir(), "corvus-build-"+deployment.ID)
-	defer os.RemoveAll(tempWorkingDir) // clean up the working directory on any exit path
+	defer func() { // clean up the working directory on any exit path
+		removeError := os.RemoveAll(tempWorkingDir)
+		if removeError != nil {
+			deployerPipeline.logger.Warn("failed to remove temp build directory (non-fatal)",
+				"path", tempWorkingDir,
+				"error", removeError,
+			)
+		}
+	}()
 
 	pipelineLogger.logInfo("extracting zip to working directory: %s", tempWorkingDir)
-	errExtractingZipUpload := ExtractZipUpload(tempFileForZipExtraction.Name(), tempWorkingDir)
+	errExtractingZipUpload := ExtractZipUpload(tempZipFileForExtraction.Name(), tempWorkingDir)
 	if errExtractingZipUpload != nil {
 		pipelineLogger.logFailureAndUpdateStatus("failed to extract zip archive", errExtractingZipUpload)
 		return
@@ -209,7 +216,7 @@ func (deployerPipeline *DeployerPipeline) RedeployExistingZip(deployment *models
 		return
 	}
 
-	// verify the extracted zip files still exist on disk
+	// (zip only) verify the extracted zip files still exist on disk
 	deploymentDir := filepath.Join(deployerPipeline.assetStorageRoot, deployment.Slug)
 	if _, err := os.Stat(deploymentDir); os.IsNotExist(err) {
 		pipelineLogger.logFailureAndUpdateStatus("deployment files not found on disk, cannot redeploy", err)
@@ -258,21 +265,4 @@ func (deployerPipeline *DeployerPipeline) RedeployExistingZip(deployment *models
 		"slug", deployment.Slug,
 		"url", "http://"+deployment.Slug+".localhost",
 	)
-}
-
-// openLogFile creates or opens the log file for a deployment (each deployment has its own log file).
-// the log directory is created if it does not exist.
-// the file is opened in append mode so redeployments add to the existing log
-// rather than overwriting it, preserving the full deployment history in one file.
-func (deployerPipeline *DeployerPipeline) openLogFile(slug string) (*os.File, error) {
-	err := os.MkdirAll(deployerPipeline.logRoot, 0755)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-	logPath := filepath.Join(deployerPipeline.logRoot, slug+".log")
-	// os.O_APPEND: writes go to the end of the file.
-	// os.O_CREATE: create the file if it does not exist.
-	// os.O_WRONL: open for writing only.
-	// 0644: owner read/write, group and others read-only.
-	return os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 }
