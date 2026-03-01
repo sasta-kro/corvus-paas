@@ -1,5 +1,3 @@
-// Package build contains the deployment pipeline logic (zip extraction, git cloning)
-// this package bridges the HTTP layer (handlers) and the infrastructure layer (docker).
 package build
 
 import (
@@ -43,7 +41,7 @@ func ExtractZipUpload(zipFilePath string, destinationDirectory string) error {
 		}
 	}
 
-	return nil // function just write files, doesnt return anything
+	return nil // function just write files, doesnt return anything except an error
 }
 
 // extractZipEntry (helper func) extracts a single file or directory entry from the zip archive.

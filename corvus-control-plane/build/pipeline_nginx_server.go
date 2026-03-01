@@ -15,7 +15,7 @@ import (
 // deployToNginx handles the shared deployment steps (at the tail end) that are identical
 // for all source types (both zip & GitHub). It is called after the source-specific logic
 // (zip extraction or git clone + build) has produced a directory of
-// static files at sourceCodeDirectory.
+// static files at contentRoot.
 //
 // steps performed:
 //   - validate the output directory exists within sourceCodeDirectory
@@ -23,7 +23,6 @@ import (
 //   - stop and remove any existing container for this slug (handles redeployment)
 //   - start nginx container with the asset storage directory bind-mounted
 //   - update status to "live"
-//   - clean up temp files
 //
 // Returns true if the deployment reached "live" status, false if any step failed.
 // all logging and status updates are handled internally via the pipelineLogger.
@@ -34,10 +33,11 @@ func (deployerPipeline *DeployerPipeline) deployToNginx(
 	pipelineLogger *deployerPipelineLogger,
 ) bool {
 
-	// ===== Resolve the output directory within the root source content
-	// (the root folder that has subfolders for each deployment)
-	// OutputDirectory is user-provided (eg. "dist", "build", ".").
-	// filepath.Join() also handles the "." case correctly. Join(tempWorkingDir, ".") == tempWorkingDir.
+	// ===== Resolve the output directory within the content root
+	// contentRoot is the temp directory containing the extracted zip or cloned repo.
+	// it is a single deployment's temp working directory (e.g., /tmp/corvus-build-<uuid>/)
+	// OutputDirectory is user-provided (e.g., "dist", "build", ".").
+	// filepath.Join handles the "." case correctly: Join(contentRoot, ".") == contentRoot.
 	outputDirectory := filepath.Join(contentRoot, deployment.OutputDirectory)
 
 	// Verifying if the output directory actually exists
@@ -70,8 +70,10 @@ func (deployerPipeline *DeployerPipeline) deployToNginx(
 	pipelineLogger.logInfo("files copied to asset storage root")
 
 	// ===== Stop and remove any existing container for this slug
+
 	// this should be a no-op for new deployments (no container exists yet).
-	// but for redeployments, it replaces the currently running container (TODO remove this part since it is useless or keep just in case? or handle saying choose another slug/generate another slug?)
+	// for GitHub redeploys, this replaces the currently running container.
+	// StopAndRemoveContainer is idempotent, returns nil if the container does not exist.
 	containerName := "deploy-" + deployment.Slug
 	pipelineLogger.logInfo("stopping existing container if present: %s", containerName)
 	errStopAndRemoveContainer := deployerPipeline.dockerClient.StopAndRemoveContainer(deployContext, containerName)

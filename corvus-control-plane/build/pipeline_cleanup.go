@@ -1,4 +1,4 @@
-package build2
+package build
 
 // pipeline_cleanup.go contains cleanup methods on DeployerPipeline used by the
 // DeleteDeployment handler. These methods live here (not in the handler) because
