@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     url            TEXT,
     webhook_secret TEXT,
     auto_deploy    INTEGER NOT NULL DEFAULT 0,
+	expires_at     DATETIME,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

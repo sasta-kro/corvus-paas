@@ -9,6 +9,7 @@ import (
 	"log/slog"      // slog = structured log. used for json logging in this app
 	"os"            // used .Getenv calls and write logs to stdout.
 	"path/filepath" // used to extract file base name form absolute path in logging.
+	"strconv"
 )
 
 // AppConfig struct holds all configuration values for the application.
@@ -40,6 +41,21 @@ type AppConfig struct {
 	// accepted values: "json" (default) | "text"
 	// set to "text" during local development for readable terminal output
 	LogFormat string
+
+	// FriendCode is the secret code that grants extended TTL.
+	// compared against the friend_code field in create deployment requests.
+	// empty string means the friend code system is disabled.
+	FriendCode string
+
+	// DefaultTTLMinutes is the lifetime of a public deployment in minutes.
+	DefaultTTLMinutes int
+
+	// ExtendedTTLMinutes is the lifetime when a valid friend code is provided.
+	ExtendedTTLMinutes int
+
+	// CORSOrigin is the allowed origin for CORS headers.
+	// set to "*" during development, restrict to the frontend domain in production.
+	CORSOrigin string
 }
 
 // NewLogger constructs a *slog.Logger based on the LogFormat field of the config.
@@ -112,6 +128,12 @@ func LoadAppConfig() *AppConfig {
 		LogRoot:          getEnv("LOG_ROOT", "/srv/corvus-paas/logs"),
 		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
 		LogFormat:        getEnv("LOG_FORMAT", "text"),
+
+		FriendCode:         getEnv("FRIEND_CODE", ""), // empty means no friend code
+		DefaultTTLMinutes:  getEnvInt("DEFAULT_TTL_MINUTES", 15),
+		ExtendedTTLMinutes: getEnvInt("EXTENDED_TTL_MINUTES", 60),
+
+		CORSOrigin: getEnv("CORS_ORIGIN", "*"),
 	}
 }
 
@@ -124,4 +146,17 @@ func getEnv(key, fallbackValue string) string {
 		return value
 	}
 	return fallbackValue
+}
+
+// returns the fallback value if the variable is not set, empty, or not a valid integer.
+func getEnvInt(key string, fallbackValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallbackValue
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallbackValue
+	}
+	return parsed
 }

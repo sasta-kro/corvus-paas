@@ -25,6 +25,11 @@ type RouterDependencies struct {
 	Logger           *slog.Logger
 	Database         *db.Database
 	DeployerPipeline *build.DeployerPipeline
+	CORSOrigin       string
+
+	FriendCode         string
+	DefaultTTLMinutes  int
+	ExtendedTTLMinutes int
 }
 
 // CreateAndSetupRouter constructs the chi multiplexer, attaches middleware, constructs
@@ -37,6 +42,8 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 	// Mux: Short for Multiplexer, this is the HTTP router (chi.Mux). It acts
 	//    as a switchboard, inspecting incoming request URLs and routing them to
 	//    the appropriate Go handler functions.
+
+	router.Use(CORSMiddleware(dependencies.CORSOrigin))
 
 	// chi middleware runs on every request before the handler is called  (top to bottom).
 	// Common use cases include authentication, rate limiting, CORS header injection,
@@ -59,6 +66,10 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 		dependencies.Database,
 		dependencies.Logger,
 		dependencies.DeployerPipeline,
+
+		dependencies.FriendCode,
+		dependencies.DefaultTTLMinutes,
+		dependencies.ExtendedTTLMinutes,
 	)
 
 	// --- route registration ---
@@ -83,7 +94,7 @@ func CreateAndSetupRouter(dependencies RouterDependencies) http.Handler {
 
 		apiRouter.Post("/deployments/{uuid}/redeploy", deploymentHandler.RedeployDeployment)
 
-		// TODO redeploy and delete will be added in the future
+		apiRouter.Get("/validate-code", ValidateFriendCode(dependencies.FriendCode, dependencies.Logger))
 
 		// placeholder to confirm the route group compiles correctly
 		// if the routes are not registered yet

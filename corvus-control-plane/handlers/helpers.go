@@ -80,3 +80,16 @@ func generateWebhookSecret() (string, error) {
 	}
 	return hex.EncodeToString(secretBytes), nil
 }
+
+// ValidateFriendCode handles GET /api/validate-code?code=xyz.
+// Returns {"valid": true} if the code matches the configured friend code,
+// {"valid": false} otherwise. If no friend code is configured on the backend,
+// all codes are invalid.
+// TODO: this one is done weird, it is an endpoint but it is in helper, plus its not like the other handlers. this one has args
+func ValidateFriendCode(friendCode string, logger *slog.Logger) http.HandlerFunc {
+	return func(responseWriter http.ResponseWriter, request *http.Request) {
+		code := request.URL.Query().Get("code")
+		isValid := friendCode != "" && code == friendCode
+		writeJsonAndRespond(responseWriter, http.StatusOK, map[string]bool{"valid": isValid})
+	}
+}

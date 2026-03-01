@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -21,6 +22,10 @@ type DeploymentHandler struct {
 	database         *db.Database
 	logger           *slog.Logger
 	deployerPipeline *build.DeployerPipeline
+
+	friendCode         string
+	defaultTTLMinutes  int
+	extendedTTLMinutes int
 }
 
 // NewDeploymentHandler constructs a DeploymentHandler with its required dependencies.
@@ -28,12 +33,19 @@ func NewDeploymentHandler(
 	database *db.Database,
 	logger *slog.Logger,
 	deployerPipeline *build.DeployerPipeline,
+	friendCode string,
+	defaultTTLMinutes int,
+	extendedTTLMinutes int,
 ) *DeploymentHandler {
 
 	return &DeploymentHandler{
 		database:         database,
 		logger:           logger,
 		deployerPipeline: deployerPipeline,
+
+		friendCode:         friendCode,
+		defaultTTLMinutes:  defaultTTLMinutes,
+		extendedTTLMinutes: extendedTTLMinutes,
 	}
 }
 
@@ -239,6 +251,22 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	autoDeploy := rawAutoDeploy == "true"
 	validatedRequest.AutoDeploy = autoDeploy
 
+	// ==== compute expiration based on FriendCode
+	// the friend_code field is optional. if provided and matches the configured
+	// code, the deployment gets an extended TTL. otherwise it gets the default TTL.
+	// if no friend code is configured on the backend, all deployments get the default TTL.
+	friendCode := request.FormValue("friend_code")
+	ttlMinutes := handler.defaultTTLMinutes
+	if handler.friendCode != "" && friendCode == handler.friendCode {
+		ttlMinutes = handler.extendedTTLMinutes
+	}
+
+	var expiresAt *time.Time
+	if ttlMinutes > 0 {
+		t := time.Now().UTC().Add(time.Duration(ttlMinutes) * time.Minute)
+		expiresAt = &t
+	}
+
 	// ===== handle zip file upload
 
 	// FormFile retrieves the uploaded file for the given form field name.
@@ -297,6 +325,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		URL:                  &deploymentURL,
 		WebhookSecret:        &webhookSecret,
 		AutoDeploy:           validatedRequest.AutoDeploy,
+		ExpiresAt:            expiresAt,
 	}
 
 	// ===== Writing to database (persist to database)
@@ -365,60 +394,15 @@ func (handler *DeploymentHandler) DeleteDeployment(responseWriter http.ResponseW
 		"slug", deployment.Slug,
 	)
 
-	// ===== stop and remove the container.
-	// StopAndRemoveContainer is idempotent, returns nil if the container does not exist.
-	// this handles the case where the deployment failed before a container was started,
-	// or where the container was already manually removed.
-	containerName := "deploy-" + deployment.Slug
-	context := request.Context()
-
-	err = handler.deployerPipeline.CleanupContainer(context, containerName)
-	if err != nil {
-		handler.logger.Error("failed to remove container during delete",
-			"id", deploymentID,
-			"container", containerName,
-			"error", err,
-		)
-		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to remove deployment container", handler.logger)
-		return
-	}
-
-	// ===== remove the static files from the asset storage root.
-	// os.RemoveAll is idempotent, returns nil if the path does not exist.
-	err = handler.deployerPipeline.CleanupFiles(deployment.Slug)
-	if err != nil {
-		handler.logger.Error("failed to remove deployment files during delete",
+	// ===== stop and remove the container, and other cleanup stuff
+	errTeardownDeployment := handler.deployerPipeline.TeardownDeployment(request.Context(), deployment)
+	if errTeardownDeployment != nil {
+		handler.logger.Error("teardown failed during delete",
 			"id", deploymentID,
 			"slug", deployment.Slug,
-			"error", err,
+			"error", errTeardownDeployment,
 		)
-		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to remove deployment files", handler.logger)
-		return
-	}
-
-	// ===== remove the log file (associated with the container)
-	// non-fatal if this fails, the deployment is already torn down,
-	// a leftover log file is not a functional issue.
-	if err := handler.deployerPipeline.CleanupLogFile(deployment.Slug); err != nil {
-		handler.logger.Warn("failed to remove deployment log file (non-fatal)",
-			"slug", deployment.Slug,
-			"error", err,
-		)
-	}
-
-	// ===== delete the database record (last)
-	// if any previous step failed and returned early, the record still exists,
-	// allowing the user to retry the delete request.
-	if err := handler.database.DeleteDeployment(deploymentID); err != nil {
-		handler.logger.Error("failed to delete deployment record",
-			"id", deploymentID,
-			"error", err,
-		)
-		writeErrorJsonAndLogIt(
-			responseWriter,
-			http.StatusInternalServerError,
-			"failed to delete deployment record", handler.logger,
-		)
+		writeErrorJsonAndLogIt(responseWriter, http.StatusInternalServerError, "failed to delete deployment", handler.logger)
 		return
 	}
 

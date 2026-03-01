@@ -59,6 +59,7 @@ func main() {
 	}
 	defer dockerClient.Close()
 
+	// pipeline
 	deployerPipeline := build.NewDeployerPipeline(
 		database,
 		dockerClient,
@@ -70,12 +71,24 @@ func main() {
 		},
 	)
 
+	// Expired container cleanup loop (runs in background goroutine)
+	// uses a separate context that is canceled during graceful shutdown.
+	expirationContext, cancelExpiration := context.WithCancel(context.Background())
+	defer cancelExpiration()
+	go deployerPipeline.StartExpirationCleanupLoop(expirationContext, 30*time.Second, logger)
+
 	// Router setup
 
 	router := handlers.CreateAndSetupRouter(handlers.RouterDependencies{
 		Logger:           logger,
 		Database:         database,
 		DeployerPipeline: deployerPipeline,
+		CORSOrigin:       appConfig.CORSOrigin,
+
+		// TODO there should be a better way than just to pass down 3 raw TTL related variables idk
+		FriendCode:         appConfig.FriendCode,
+		DefaultTTLMinutes:  appConfig.DefaultTTLMinutes,
+		ExtendedTTLMinutes: appConfig.ExtendedTTLMinutes,
 	})
 
 	// --- HTTP server construction ---
