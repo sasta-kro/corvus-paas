@@ -129,7 +129,7 @@ func LoadAppConfig() *AppConfig {
 		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
 		LogFormat:        getEnv("LOG_FORMAT", "text"),
 
-		FriendCode:         getEnv("FRIEND_CODE", ""), // empty means no friend code
+		FriendCode:         getEnv("FRIEND_CODE", "HyggeNaterre"), // empty means no friend code
 		DefaultTTLMinutes:  getEnvInt("DEFAULT_TTL_MINUTES", 15),
 		ExtendedTTLMinutes: getEnvInt("EXTENDED_TTL_MINUTES", 60),
 
