@@ -112,7 +112,7 @@ func (deployerPipeline *DeployerPipeline) DeployGitHub(deployment *models.Deploy
 			return
 		}
 
-		buildContainerName := "build-" + deployment.Slug
+		buildContainerName := "building-" + deployment.Slug
 		buildConfig := docker.BuildContainerConfig{
 			ContainerName:        buildContainerName,
 			BuildCommand:         deployment.BuildCommand,

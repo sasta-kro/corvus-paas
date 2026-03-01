@@ -234,7 +234,7 @@ func (dockerClient *DockerClient) RunEphemeralBuildContainer(
 	// (eg, npm install found missing dependencies, a syntax error in the code, a test failure).
 	// the specific error details are already written to the log file via the stdout/stderr capture above.
 	if exitCode != 0 {
-		return fmt.Errorf("build command exited with code %d in container %q", exitCode, config.ContainerName)
+		return fmt.Errorf("build command exited with code '%d' (0=success) in container %q", exitCode, config.ContainerName)
 	}
 
 	return nil
