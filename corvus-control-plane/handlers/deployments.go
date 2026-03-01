@@ -293,9 +293,13 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	// if no friend code is configured on the backend, all deployments get the default TTL.
 	friendCode := request.FormValue("friend_code")
 	ttlMinutes := handler.defaultTTLMinutes
-	if handler.friendCode != "" && friendCode == handler.friendCode {
-		handler.logger.Info("friend code activated", "slug", slug, "deploymentID", deploymentID)
+	if friendCode == handler.friendCode {
+		handler.logger.Info("friend_code activated", "slug", slug, "deploymentID", deploymentID)
 		ttlMinutes = handler.extendedTTLMinutes
+	} else if handler.friendCode != "" { // someone put something wrong in the friend code (exploit or malicious)
+		handler.logger.Warn("incorrect friend_code detected (could be malicious)", "slug", slug, "deploymentID", deploymentID)
+	} else if handler.friendCode == "" {
+		handler.logger.Info("no friend_code detected", "slug", slug, "deploymentID", deploymentID)
 	}
 
 	var expiresAt *time.Time
