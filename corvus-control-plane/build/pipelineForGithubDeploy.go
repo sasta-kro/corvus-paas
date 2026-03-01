@@ -113,7 +113,7 @@ func (deployerPipeline *DeployerPipeline) DeployGitHub(deployment *models.Deploy
 		}
 
 		buildContainerName := "building-" + deployment.Slug
-		buildConfig := docker.BuildContainerConfig{
+		buildConfig := docker.RunEphemeralBuildContainerConfig{
 			ContainerName:        buildContainerName,
 			BuildCommand:         deployment.BuildCommand,
 			HostSourceDirectory:  tempWorkingDir,

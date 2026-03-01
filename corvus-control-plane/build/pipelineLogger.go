@@ -28,7 +28,7 @@ func (pipelineLogger *deployerPipelineLogger) logInfo(format string, args ...any
 	message := fmt.Sprintf(format, args...)
 	line := fmt.Sprintf("[%s] %s\n", time.Now().UTC().Format(time.RFC3339), message)
 
-	pipelineLogger.pipeline.logger.Info("deployerPipeline",
+	pipelineLogger.pipeline.logger.Info("deployer pipeline",
 		"slug", pipelineLogger.deployment.Slug,
 		"msg", message,
 	)

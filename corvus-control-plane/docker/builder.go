@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -18,10 +19,10 @@ import (
 // specify a custom build image (eg, python, kotlin, go, etc).
 const buildImage string = "node:20-alpine"
 
-// BuildContainerConfig holds the parameters for RunEphemeralBuildContainer()
+// RunEphemeralBuildContainerConfig holds the parameters for RunEphemeralBuildContainer()
 // grouping them in a struct keeps the function signature stable as
 // more options are added (eg, memory limits, custom image in v2).
-type BuildContainerConfig struct {
+type RunEphemeralBuildContainerConfig struct {
 	// ContainerName is the Docker container name.
 	// used "build-<slug>" to distinguish from "deploy-<slug>" serving containers.
 	ContainerName string
@@ -67,7 +68,7 @@ type BuildContainerConfig struct {
 // the stream into clean text for the log file.
 func (dockerClient *DockerClient) RunEphemeralBuildContainer(
 	buildContext context.Context,
-	config BuildContainerConfig,
+	config RunEphemeralBuildContainerConfig,
 ) error {
 	// ===== pull image if not already present
 	pullError := dockerClient.pullImageIfNotPresent(buildContext, buildImage)
@@ -86,6 +87,15 @@ func (dockerClient *DockerClient) RunEphemeralBuildContainer(
 		Cmd:        []string{"sh", "-c", config.BuildCommand},
 		WorkingDir: "/workspace",
 		Env:        config.EnvironmentVariables,
+
+		// this fixes the permission error that doesn't allow deleting a temp folder in /tmp
+		// This happens because the build container ran as root inside the container.
+		// When npm ci && npm run build wrote the dist/ folder, the files were created
+		// owned by root (UID 0) on the host filesystem. The Go backend runs as
+		// sasta-docker or whatever the user is, which cannot delete root-owned files.
+		// This makes the build process run as the same user that owns the Go process,
+		// so all output files are owned by sasta-docker and the cleanup can delete them.
+		User: fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
 	}
 
 	// the source directory is bind-mounted read-write so the build process
@@ -234,7 +244,7 @@ func (dockerClient *DockerClient) RunEphemeralBuildContainer(
 	// (eg, npm install found missing dependencies, a syntax error in the code, a test failure).
 	// the specific error details are already written to the log file via the stdout/stderr capture above.
 	if exitCode != 0 {
-		return fmt.Errorf("build command exited with code '%d' (0=success) in container %q", exitCode, config.ContainerName)
+		return fmt.Errorf("build command exited with code '%d' in container %q", exitCode, config.ContainerName)
 	}
 
 	return nil
