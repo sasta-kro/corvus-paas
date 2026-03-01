@@ -111,9 +111,12 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 func (database *Database) GetDeployment(id string) (*models.Deployment, error) {
 	query := `
 		SELECT
-			id, slug, name, source_type, github_url, branch,
-			build_cmd, output_dir, env_vars, status, url,
-			webhook_secret, auto_deploy, expires_at, updated_at
+			id, slug, name,
+			source_type, github_url, branch,
+			build_cmd, output_dir, env_vars,
+			status, url, webhook_secret,
+			auto_deploy, expires_at, created_at, 
+			updated_at
 		FROM deployments
 		WHERE id = ?
 	`
@@ -306,9 +309,12 @@ func (database *Database) DeleteDeployment(id string) error {
 func (database *Database) ListExpiredDeployments() ([]*models.Deployment, error) {
 	query := `
 		SELECT
-			id, slug, name, source_type, github_url, branch,
-			build_cmd, output_dir, env_vars, status, url,
-			webhook_secret, auto_deploy, expires_at, created_at, updated_at
+			id, slug, name,
+			source_type, github_url, branch,
+			build_cmd, output_dir, env_vars, 
+			status, url, webhook_secret,
+			auto_deploy, expires_at, created_at,
+			updated_at
 		FROM deployments
 		WHERE expires_at IS NOT NULL
 		  AND expires_at <= CURRENT_TIMESTAMP
