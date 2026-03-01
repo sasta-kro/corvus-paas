@@ -1,5 +1,4 @@
-// Package build contains the deployment pipeline logic: zip extraction,
-// git cloning (future TODO), and build container orchestration (future).
+// Package build contains the deployment pipeline logic (zip extraction, git cloning)
 // this package bridges the HTTP layer (handlers) and the infrastructure layer (docker).
 package build
 
