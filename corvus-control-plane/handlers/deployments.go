@@ -142,13 +142,12 @@ func (handler *DeploymentHandler) GetDeployment(responseWriter http.ResponseWrit
 // CreateDeployment handles POST /api/deployments.
 // for source_type "zip" - reads a multipart form upload, validates fields,
 // creates the database record, and fires the deployerPipeline in a goroutine.
-// for source_type "github": creates the record only (deployerPipeline wired in Phase 4).
+// for source_type "github": calls deploy github pipeline
 // returns 201 immediately with status "deploying".
 // the client polls GET /api/deployments/:id to track progress to "live" or "failed".
 
 func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseWriter, request *http.Request) {
-
-	// --- parse multipart form (needed for the zip upload and json in 1 http request)
+	// ===== parse multipart form (needed for the zip upload and json in 1 http request)
 
 	// ParseMultipartForm reads the incoming multipart body into memory up to maxMemory bytes.
 	// files larger than maxMemory are spilled to disk automatically by the standard library.
@@ -161,7 +160,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		return
 	}
 
-	// --- Read form fields and validate step by step
+	// ===== Read form fields and validate step by step
 
 	var validatedRequest createDeploymentRequest
 	// request.FormValue reads a named field from the parsed multipart form.
@@ -212,7 +211,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 
 	rawEnvironmentVariables := request.FormValue("environment_variables")
 	// env vars arrive as a JSON string in the form field.
-	// decode it into a map, then re-encode it as a JSON string for storage.
+	// decoding it into a map, then re-encode it as a JSON string for storage.
 	// this round-trip validates the JSON and normalises the format.
 	// TODO the env var doesn't really need to be in the createDeploymentRequest struct so i gotta do something with it.
 	var encodedEnvironmentVariables *string
@@ -240,7 +239,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	autoDeploy := rawAutoDeploy == "true"
 	validatedRequest.AutoDeploy = autoDeploy
 
-	// --- handle zip file upload ---
+	// ===== handle zip file upload
 
 	// FormFile retrieves the uploaded file for the given form field name.
 	// returns the file content as a multipart.File (implements io.Reader)
@@ -260,14 +259,14 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 
 	}
 
-	// --- generate deployment identifiers
+	// ===== generate deployment identifiers
 
 	deploymentID := uuid.New().String()
 	slug := util.GenerateSlug()
 
 	// the webhook secret is a 32-byte cryptographically random value encoded as hex.
 	// 32 bytes = 256 bits of entropy, which is the same strength as an HMAC-SHA256 key.
-	// crypto/rand is used (not math/rand) because this value is a security credential:
+	// crypto/rand is used (not math/rand) because this value is a security credential.
 	// it is used to verify GitHub webhook signatures. math/rand is not suitable for secrets.
 	webhookSecret, err := generateWebhookSecret() // helper function
 	if err != nil {
@@ -276,7 +275,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		return
 	}
 
-	// --- create/build deployment URL
+	// ===== create/build deployment URL
 
 	// the URL is constructed from the slug and set immediately so the client
 	// knows the public address before the container is even started.
@@ -300,7 +299,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		AutoDeploy:           validatedRequest.AutoDeploy,
 	}
 
-	// --- Write to database (persist to database)
+	// ===== Writing to database (persist to database)
 	err = handler.database.InsertDeployment(deployment)
 	if err != nil {
 		handler.logger.Error("failed to insert deployment", "id", deploymentID, "error", err)
@@ -316,7 +315,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		"name", validatedRequest.Name,
 	)
 
-	// ---  Start deployerPipeline asynchronously
+	// =====  Start deployerPipeline asynchronously
 
 	// the deployerPipeline runs in a goroutine so the HTTP handler returns immediately.
 	// the client receives 201 with status "deploying" and polls for updates.
@@ -325,7 +324,9 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		go handler.deployerPipeline.DeployZipUpload(deployment, uploadedFile)
 	}
 
-	// TODO github deployerPipeline is triggered here in Phase 4.
+	if validatedRequest.SourceType == models.SourceGitHub {
+		go handler.deployerPipeline.DeployGitHub(deployment)
+	}
 
 	// 201 Created is the correct status for a successful resource creation
 	// (the record exists, the deployerPipeline is running.)
@@ -459,14 +460,13 @@ func (handler *DeploymentHandler) RedeployDeployment(responseWriter http.Respons
 
 	// trigger the pipeline based on source type.
 	// zip redeployments use the existing files on disk.
-	// github redeployments will re-clone and rebuild (Phase 4, not wired yet).
+	// GitHub redeployments will re-clone and rebuild
 	switch deployment.SourceType {
 	case models.SourceZip:
 		go handler.deployerPipeline.RedeployExistingZip(deployment)
 	case models.SourceGitHub:
-		// TODO: add go handler.deployerPipeline.DeployGitHub(deployment)
-		writeErrorJsonAndLogIt(responseWriter, http.StatusNotImplemented, "github redeploy not yet implemented", handler.logger)
-		return
+		go handler.deployerPipeline.DeployGitHub(deployment)
+
 	default:
 		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "unknown source type", handler.logger)
 		return
