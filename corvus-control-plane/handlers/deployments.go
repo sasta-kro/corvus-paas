@@ -435,6 +435,7 @@ func (handler *DeploymentHandler) DeleteDeployment(responseWriter http.ResponseW
 // RedeployDeployment handles POST /api/deployments/:uuid/redeploy.
 // fetches the existing deployment, validates it can be redeployed,
 // and triggers the appropriate pipeline in a goroutine.
+// git -> RedeployExistingZip()   |    github -> just recall DeployGithub()
 // returns 202 Accepted immediately (the redeploy runs asynchronously).
 // the client polls GET /api/deployments/:uuid to track the status transition
 // from "deploying" back to "live" or "failed".
