@@ -10,7 +10,50 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sasta-kro/corvus-paas/corvus-control-plane/models"
 )
+
+// TeardownDeployment runs the full teardown sequence for a deployment:
+// stop container, remove files, remove log, delete DB row.
+// Used by both the DELETE handler and the expiration cleanup loop.
+// Returns an error if any critical step fails (container or file removal).
+// Log file removal failure is non-fatal and only logged.
+func (deployerPipeline *DeployerPipeline) TeardownDeployment(
+	teardownContext context.Context,
+	deployment *models.Deployment,
+) error {
+	containerName := "deploy-" + deployment.Slug
+
+	if err := deployerPipeline.CleanupContainer(teardownContext, containerName); err != nil {
+		return fmt.Errorf("failed to remove container: %w", err)
+	}
+
+	// ===== remove the static files from the asset storage root.
+	// os.RemoveAll is idempotent, returns nil if the path does not exist.
+	if err := deployerPipeline.CleanupFiles(deployment.Slug); err != nil {
+		return fmt.Errorf("failed to remove files: %w", err)
+	}
+
+	// ===== remove the log file (associated with the container)
+	// non-fatal if this fails, the deployment is already torn down,
+	// a leftover log file is not a functional issue.
+	if err := deployerPipeline.CleanupLogFile(deployment.Slug); err != nil {
+		deployerPipeline.logger.Warn("failed to remove log file (non-fatal)",
+			"slug", deployment.Slug,
+			"error", err,
+		)
+	}
+
+	// ===== delete the database record (last)
+	// if any previous step failed and returned early, the record still exists,
+	// allowing the user to retry the delete request.
+	if err := deployerPipeline.database.DeleteDeployment(deployment.ID); err != nil {
+		return fmt.Errorf("failed to delete deployment record: %w", err)
+	}
+
+	return nil
+}
 
 // ========== 3 cleanup helper methods
 

@@ -123,6 +123,11 @@ type Deployment struct {
 	// stored as INTEGER 0/1 in SQLite (SQLite has no native boolean type).
 	AutoDeploy bool `json:"auto_deploy" db:"auto_deploy"`
 
+	// ExpiresAt is the timestamp when this deployment should be automatically
+	// cleaned up (container stopped, files removed, DB row deleted).
+	// nil means the deployment does not expire.
+	ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+
 	// CreatedAt is set once at row insertion time
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 

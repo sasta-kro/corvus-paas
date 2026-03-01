@@ -59,13 +59,15 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 			source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, 
 			status, url, webhook_secret, 
-			auto_deploy, created_at, updated_at
+			auto_deploy, expires_at, created_at,
+			updated_at
 		) VALUES (
 			?, ?, ?, -- these are parameter placeholders, PostgresSQL uses $1, $2, $3
 			?, ?, ?, 
 			?, ?, ?, 
 			?, ?, ?,
-			?, ?, ?
+			?, ?, ?,
+			?
 		)
 	`
 
@@ -94,6 +96,7 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 		deployment.URL,           // *string, nil inserts NULL
 		deployment.WebhookSecret, // *string, nil inserts NULL
 		deployment.AutoDeploy,    // bool, driver converts to 0/1
+		deployment.ExpiresAt,     // *time.Time, nil inserts NULL
 		deployment.CreatedAt,
 		deployment.UpdatedAt,
 	)
@@ -110,7 +113,7 @@ func (database *Database) GetDeployment(id string) (*models.Deployment, error) {
 		SELECT
 			id, slug, name, source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, status, url,
-			webhook_secret, auto_deploy, created_at, updated_at
+			webhook_secret, auto_deploy, expires_at, updated_at
 		FROM deployments
 		WHERE id = ?
 	`
@@ -142,7 +145,7 @@ func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 		SELECT
 			id, slug, name, source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, status, url,
-			webhook_secret, auto_deploy, created_at, updated_at
+			webhook_secret, auto_deploy, expires_at, created_at, updated_at
 		FROM deployments
 		ORDER BY created_at DESC
 	`
@@ -296,6 +299,41 @@ func (database *Database) DeleteDeployment(id string) error {
 	return nil
 }
 
+// ListExpiredDeployments returns all deployments whose expires_at timestamp
+// has passed and whose status is "live". These are candidates for automatic
+// cleanup by the expiration goroutine.
+// Deployments with NULL expires_at are never returned (they do not expire).
+func (database *Database) ListExpiredDeployments() ([]*models.Deployment, error) {
+	query := `
+		SELECT
+			id, slug, name, source_type, github_url, branch,
+			build_cmd, output_dir, env_vars, status, url,
+			webhook_secret, auto_deploy, expires_at, created_at, updated_at
+		FROM deployments
+		WHERE expires_at IS NOT NULL
+		  AND expires_at <= CURRENT_TIMESTAMP
+		  AND status = ?
+	`
+	rows, err := database.connection.Query(query, models.StatusLive)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list expired deployments: %w", err)
+	}
+	defer rows.Close()
+
+	var deployments []*models.Deployment
+	for rows.Next() {
+		deployment, err := scanDeploymentFields(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan expired deployment row: %w", err)
+		}
+		deployments = append(deployments, deployment)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating expired deployment rows: %w", err)
+	}
+	return deployments, nil
+}
+
 // Logging In DB Layer or not??
 // In a layered architecture, the database layer avoids logging routine
 // queries to prevent log spam and duplicate error reporting. The database
@@ -353,6 +391,7 @@ func scanDeploymentFields(row scanner) (*models.Deployment, error) {
 		&deployment.URL,           // scans NULL -> nil *string
 		&deployment.WebhookSecret, // scans NULL -> nil *string
 		&deployment.AutoDeploy,    // scans INTEGER 0/1 -> bool
+		&deployment.ExpiresAt,
 		&deployment.CreatedAt,
 		&deployment.UpdatedAt,
 	)
