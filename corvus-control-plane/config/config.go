@@ -6,10 +6,13 @@ application can start with zero environment setup during local development.
 package config
 
 import (
+	"fmt"
+	"io"
 	"log/slog"      // slog = structured log. used for json logging in this app
 	"os"            // used .Getenv calls and write logs to stdout.
 	"path/filepath" // used to extract file base name form absolute path in logging.
 	"strconv"
+	"time"
 )
 
 // AppConfig struct holds all configuration values for the application.
@@ -68,11 +71,18 @@ type AppConfig struct {
 // "text" produces human-readable output for local development
 // any other value (including "json") produces structured JSON output for production
 // and Docker log shipping.
-// *AppConfig is a pointer receiver rather than a value receiver cuz copying AppConfig struct unnecessary
-// returning a pointer *slog.Logger rather than value is standard for complex objects
-// like loggers, database connections, or servers. It forces things to use the same logger instance.
-func (config *AppConfig) NewLogger() *slog.Logger {
-	var handler slog.Handler // declaration of slog.Handler interface variable to hold the chosen log handler
+//
+// The logger writes to both stdout (for terminal/dev use) and a timestamped log file
+// in the LogRoot directory. Each run creates a new file like "corvus-2026-03-03_02-52-45.log"
+// so logs from different runs don't get mixed together. When running as an executable
+// without a terminal, the log file preserves all output.
+//
+// Returns the logger and the log file handle. The caller (main.go) must defer close
+// the file handle to ensure all buffered log data is flushed to disk on shutdown.
+// If the log file cannot be created (eg, permission denied), the logger falls back
+// to stdout-only and the returned file handle is nil.
+func (config *AppConfig) NewLogger() (*slog.Logger, *os.File) {
+	var handler slog.Handler
 
 	// Syntax confusion - `slog.` is the package name, `HandlerOptions` is a struct type defined in slog package.
 	// &slog.HandlerOptions{} creates a new instance of HandlerOptions struct and returns its pointer rather than value
@@ -108,14 +118,34 @@ func (config *AppConfig) NewLogger() *slog.Logger {
 		},
 	}
 
+	// setting up the writer (stdout + log file via io.MultiWriter)
+	// the log file is created in LogRoot with a timestamp in the filename
+	// so each run of the application gets its own log file.
+	var writer io.Writer = os.Stdout
+	var logFile *os.File
+
+	logDir := config.LogRoot
+	if logDir == "" {
+		logDir = "/srv/corvus-paas/logs"
+	}
+	if err := os.MkdirAll(logDir, 0755); err == nil {
+		timestamp := time.Now().Format("2006-01-02_15-04-05")
+		logPath := filepath.Join(logDir, fmt.Sprintf("corvus-%s.log", timestamp))
+		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			logFile = file
+			writer = io.MultiWriter(os.Stdout, logFile)
+		}
+	}
+
 	if config.LogFormat == "text" {
-		handler = slog.NewTextHandler(os.Stdout, options) // text for local dev
+		handler = slog.NewTextHandler(writer, options)
 	} else {
-		handler = slog.NewJSONHandler(os.Stdout, options) // json for prod
+		handler = slog.NewJSONHandler(writer, options)
 	}
 
 	// returns new logger with chosen handler
-	return slog.New(handler)
+	return slog.New(handler), logFile
 }
 
 // LoadAppConfig reads configuration from environment variables and RETURNS a populated AppConfig struct.

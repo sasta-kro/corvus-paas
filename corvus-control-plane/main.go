@@ -19,7 +19,12 @@ import (
 
 func main() {
 	appConfig := config.LoadAppConfig() // loads the config and stores pointer
-	logger := appConfig.NewLogger()     // return a logger (slog) based on `LogFormat` (text or json)
+
+	// return a logger (slog) based on `LogFormat` (text or json) and a log file
+	logger, globalLogFile := appConfig.NewLogger()
+	if globalLogFile != nil {
+		defer globalLogFile.Close()
+	}
 
 	/*
 		logger.Info() aka `slog.Logger.Info()` is just a glorified print
