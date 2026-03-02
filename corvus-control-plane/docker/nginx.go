@@ -432,7 +432,7 @@ func (dockerClient *DockerClient) pullImageIfNotPresent(context context.Context,
 func traefikLabels(slug string) map[string]string {
 	return map[string]string{
 		"traefik.enable":                                              "true",
-		"traefik.http.routers." + slug + ".rule":                      "Host(`" + slug + ".localhost`)",
+		"traefik.http.routers." + slug + ".rule":                      "Host(`" + slug + "-corvus.sasta.dev`)",
 		"traefik.http.services." + slug + ".loadbalancer.server.port": "80",
 	}
 }

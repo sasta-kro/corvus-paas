@@ -24,10 +24,11 @@ function makeMockDeployment(overrides: Partial<Deployment> & { name: string; sou
   const slug = "mock-site-" + randomId();
   const now = new Date().toISOString();
 
+
   const deployment: Deployment = {
     id,
-    slug,
-    name: overrides.name,
+    slug,  // @ts-ignore
+    name: overrides.name,// @ts-ignore
     source_type: overrides.source_type,
     github_url: overrides.github_url,
     branch: overrides.branch ?? "main",

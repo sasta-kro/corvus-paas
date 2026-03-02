@@ -134,6 +134,8 @@ func LoadAppConfig() *AppConfig {
 		ExtendedTTLMinutes: getEnvInt("EXTENDED_TTL_MINUTES", 60),
 
 		CORSOrigin: getEnv("CORS_ORIGIN", "*"),
+
+		// TODO add env var for traefik stuff like domains, base domains and stuff here
 	}
 }
 
