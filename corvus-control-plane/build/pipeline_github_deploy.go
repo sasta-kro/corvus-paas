@@ -93,6 +93,25 @@ func (deployerPipeline *DeployerPipeline) DeployGitHub(deployment *models.Deploy
 	}()
 
 	pipelineLogger.logInfo("cloning repository: %s (branch: %s)", *deployment.GitHubURL, deployment.Branch)
+
+	// ===== Auto-detect default branch if user left the default "main"
+	// Many repos still use "master" or other branch names. If the user did not
+	// change the branch from the default "main", query the GitHub API to find
+	// the repo's actual default branch and use that instead.
+	// If the user typed something specific (not "main"), they probably know
+	// what they are doing, so trusting their input.
+	if deployment.Branch == "main" {
+		actualDefault, err := fetchGitHubDefaultBranch(*deployment.GitHubURL)
+		if err != nil {
+			// non-fatal: if the API call fails (rate limit, private repo, network),
+			// fall through and attempt the clone with "main" as-is.
+			pipelineLogger.logInfo("could not auto-detect default branch (non-fatal): %v", err)
+		} else if actualDefault != "main" {
+			pipelineLogger.logInfo("auto-detected default branch: %q (user had %q)", actualDefault, deployment.Branch)
+			deployment.Branch = actualDefault
+		}
+	}
+
 	cloneError := cloneGitHubRepo(*deployment.GitHubURL, deployment.Branch, tempWorkingDir, logWriter)
 	if cloneError != nil {
 		pipelineLogger.logFailureAndUpdateStatus("git clone failed", cloneError)

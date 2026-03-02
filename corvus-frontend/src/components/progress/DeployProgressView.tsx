@@ -115,7 +115,7 @@ export default function DeployProgressView({
       {isFailed && (
         <div className="mt-6 text-center">
           <p style={{ color: "var(--vermillion)", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
-            The crow fell. Check the build command and try again.
+            The crow fell. Check the branch, build command, and output directory, then try again.
           </p>
           <button onClick={onFailed} className="ink-btn">Try Again</button>
         </div>

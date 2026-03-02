@@ -1,9 +1,11 @@
 package build
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 )
 
 // cloneGitHubRepo clones a public GitHub repository into the specified
@@ -44,7 +46,10 @@ func cloneGitHubRepo(repoURL string, branch string, destinationDir string, logWr
 	// to stderr, not stdout. stdout is used for plumbing commands (git log, git diff)
 	// that produce machine-readable output.
 	// routing stderr to the logWriter captures clone progress in the deployment log file.
-	gitCloneCommand.Stderr = logWriter
+	// also capture stderr into a buffer so we can include git's error message
+	// (e.g. "Remote branch main not found") in the returned error for better diagnostics.
+	var stderrBuf bytes.Buffer
+	gitCloneCommand.Stderr = io.MultiWriter(logWriter, &stderrBuf)
 
 	// stdout from `git clone` is typically empty for a normal clone operation.
 	// routing it to the same logWriter ensures nothing is silently discarded
@@ -60,8 +65,34 @@ func cloneGitHubRepo(repoURL string, branch string, destinationDir string, logWr
 	// provides the specific failure reason for debugging.
 	errGitClone := gitCloneCommand.Run()
 	if errGitClone != nil {
+		// extract the last meaningful line from git's stderr for a user-facing hint.
+		// git stderr typically ends with something like:
+		//   "fatal: Remote branch main not found in upstream origin"
+		//   "fatal: repository 'https://...' not found"
+		stderrOutput := strings.TrimSpace(stderrBuf.String())
+		hint := extractGitErrorHint(stderrOutput)
+
+		if hint != "" {
+			return fmt.Errorf("git clone failed for %q (branch %q): %s", repoURL, branch, hint)
+		}
 		return fmt.Errorf("git clone failed for %q (branch %q): %w", repoURL, branch, errGitClone)
 	}
 
 	return nil
+}
+
+// extractGitErrorHint parses git's stderr output and returns a concise,
+// user-facing error message. Git prefixes fatal errors with "fatal: "
+// which contains the actual reason for the failure.
+func extractGitErrorHint(stderr string) string {
+	// look for the last "fatal:" line, which is the most specific error
+	lines := strings.Split(stderr, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, "fatal:") {
+			// return the message after "fatal: "
+			return strings.TrimSpace(strings.TrimPrefix(line, "fatal:"))
+		}
+	}
+	return ""
 }
