@@ -1,39 +1,36 @@
-/** Footer with links and tech credits */
+import InkSplatter from "../shared/InkSplatter";
+
 export default function Footer() {
   return (
-    <footer className="border-t border-gray-200 bg-white mt-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-center">
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500 mb-3">
-          <a
-            href="https://github.com/sasta-kro/corvus-paas"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-black transition-colors"
-          >
-            GitHub
-          </a>
-          <a
-            href="https://github.com/sasta-kro"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-black transition-colors"
-          >
-            @sasta-kro
-          </a>
-          <a
-            href="https://linkedin.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-black transition-colors"
-          >
-            LinkedIn
-          </a>
+    <footer className="mt-auto relative" style={{ zIndex: 10 }}>
+      <div className="brush-divider-h" />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center relative">
+        <InkSplatter variant={1} size={45} style={{ bottom: 10, right: "8%", opacity: 0.08 }} />
+
+        <div className="flex flex-wrap justify-center gap-6 text-sm mb-4">
+          {[
+            { href: "https://github.com/sasta-kro/corvus-paas", label: "GitHub" },
+            { href: "https://github.com/sasta-kro", label: "@sasta-kro" },
+            { href: "https://linkedin.com", label: "LinkedIn" },
+          ].map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors"
+              style={{ color: "var(--sumi-wash)", fontWeight: 700 }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--sumi)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--sumi-wash)")}
+            >
+              {link.label}
+            </a>
+          ))}
         </div>
-        <p className="text-xs text-gray-400">
+        <p style={{ color: "var(--sumi-ghost)", fontSize: "0.8rem", fontStyle: "italic" }}>
           Built with Go, Docker, and Traefik
         </p>
       </div>
     </footer>
   );
 }
-

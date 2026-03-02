@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProgressStep from "./ProgressStep";
+import InkSplatter from "../shared/InkSplatter";
 import { useDeploymentPolling } from "../../hooks/useDeploymentPolling";
 import {
   STEP_DELAY_SOURCE_RECEIVED_MS,
@@ -13,11 +14,11 @@ import { deleteDeployment } from "../../api/deployments";
 type StepStatus = "completed" | "in-progress" | "pending" | "failed";
 
 const STEP_LABELS = [
-  "Deployment created",
-  "Source files received",
-  "Building project...",
-  "Starting server",
-  "Going live",
+  "Nest prepared",
+  "Gathering materials",
+  "Building the nest...",
+  "Spreading wings",
+  "Taking flight",
 ];
 
 interface DeployProgressViewProps {
@@ -27,20 +28,12 @@ interface DeployProgressViewProps {
   onCancel: () => void;
 }
 
-/** Progress steps container — polls deployment status and advances visual steps */
 export default function DeployProgressView({
-  deployment,
-  onComplete,
-  onFailed,
-  onCancel,
+  deployment, onComplete, onFailed, onCancel,
 }: DeployProgressViewProps) {
   const { deployment: polledDeployment } = useDeploymentPolling(deployment.id);
   const [stepStatuses, setStepStatuses] = useState<StepStatus[]>([
-    "completed",
-    "in-progress",
-    "pending",
-    "pending",
-    "pending",
+    "completed", "in-progress", "pending", "pending", "pending",
   ]);
   const [isTimedOut, setIsTimedOut] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -48,64 +41,37 @@ export default function DeployProgressView({
   const completedRef = useRef(false);
   const timeoutExtendedRef = useRef(false);
 
-  // Timer-based step advancement
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-
-    timers.push(
-      setTimeout(() => {
-        setStepStatuses((prev) => {
-          const next = [...prev];
-          if (next[1] === "in-progress" || next[1] === "pending") {
-            next[1] = "completed";
-            if (next[2] === "pending") next[2] = "in-progress";
-          }
-          return next;
-        });
-      }, STEP_DELAY_SOURCE_RECEIVED_MS)
-    );
-
-    timers.push(
-      setTimeout(() => {
-        setStepStatuses((prev) => {
-          const next = [...prev];
-          if (next[2] === "pending") next[2] = "in-progress";
-          return next;
-        });
-      }, STEP_DELAY_BUILDING_MS)
-    );
-
-    timers.push(
-      setTimeout(() => {
-        setStepStatuses((prev) => {
-          const next = [...prev];
-          if (next[2] === "in-progress") {
-            next[2] = "completed";
-            if (next[3] === "pending") next[3] = "in-progress";
-          }
-          return next;
-        });
-      }, STEP_DELAY_STARTING_MS)
-    );
-
+    timers.push(setTimeout(() => {
+      setStepStatuses((prev) => {
+        const next = [...prev];
+        if (next[1] === "in-progress" || next[1] === "pending") { next[1] = "completed"; if (next[2] === "pending") next[2] = "in-progress"; }
+        return next;
+      });
+    }, STEP_DELAY_SOURCE_RECEIVED_MS));
+    timers.push(setTimeout(() => {
+      setStepStatuses((prev) => { const next = [...prev]; if (next[2] === "pending") next[2] = "in-progress"; return next; });
+    }, STEP_DELAY_BUILDING_MS));
+    timers.push(setTimeout(() => {
+      setStepStatuses((prev) => {
+        const next = [...prev];
+        if (next[2] === "in-progress") { next[2] = "completed"; if (next[3] === "pending") next[3] = "in-progress"; }
+        return next;
+      });
+    }, STEP_DELAY_STARTING_MS));
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // Timeout check
   useEffect(() => {
     const checkTimeout = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      if (elapsed > POLL_TIMEOUT_MS && !completedRef.current) {
-        setIsTimedOut(true);
-      }
+      if (Date.now() - startTimeRef.current > POLL_TIMEOUT_MS && !completedRef.current) setIsTimedOut(true);
     }, 1000);
     return () => clearInterval(checkTimeout);
   }, []);
 
-  // React to polled status changes
   useEffect(() => {
     if (!polledDeployment || completedRef.current) return;
-
     if (polledDeployment.status === "live") {
       completedRef.current = true;
       setStepStatuses(["completed", "completed", "completed", "completed", "completed"]);
@@ -113,42 +79,34 @@ export default function DeployProgressView({
     } else if (polledDeployment.status === "failed") {
       completedRef.current = true;
       setStepStatuses((prev) => {
-        const next = [...prev];
-        // Find the in-progress step and mark it failed
-        const inProgressIdx = next.findIndex((s) => s === "in-progress");
-        if (inProgressIdx !== -1) {
-          next[inProgressIdx] = "failed";
-        }
-        return next;
+        const next = [...prev]; const idx = next.findIndex((s) => s === "in-progress");
+        if (idx !== -1) next[idx] = "failed"; return next;
       });
     }
   }, [polledDeployment, onComplete]);
 
   const handleKeepWaiting = useCallback(() => {
-    startTimeRef.current = Date.now();
-    setIsTimedOut(false);
-    timeoutExtendedRef.current = true;
+    startTimeRef.current = Date.now(); setIsTimedOut(false); timeoutExtendedRef.current = true;
   }, []);
 
   const handleCancel = useCallback(async () => {
     setIsCancelling(true);
-    try {
-      await deleteDeployment(deployment.id);
-    } catch {
-      // ignore — deployment may already be gone
-    }
+    try { await deleteDeployment(deployment.id); } catch { /* ignore */ }
     onCancel();
   }, [deployment.id, onCancel]);
 
   const isFailed = polledDeployment?.status === "failed";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-md mx-auto">
-      <h3 className="text-lg font-semibold mb-4">
+    <div className="ink-card torn-edge-2 max-w-md mx-auto relative" style={{ zIndex: 10 }}>
+      {/* Decorative ink mark */}
+      <InkSplatter variant={0} size={50} style={{ top: -8, right: -8, opacity: 0.10 }} />
+
+      <h3 className="font-brush text-lg mb-5" style={{ color: "var(--sumi)" }}>
         Deploying "{deployment.name}"
       </h3>
 
-      <div className="space-y-0">
+      <div>
         {STEP_LABELS.map((label, i) => (
           <ProgressStep key={label} label={label} status={stepStatuses[i]} />
         ))}
@@ -156,35 +114,21 @@ export default function DeployProgressView({
 
       {isFailed && (
         <div className="mt-6 text-center">
-          <p className="text-sm text-red-500 mb-3">
-            Deployment failed. Check the build command and try again.
+          <p style={{ color: "var(--vermillion)", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+            The crow fell. Check the build command and try again.
           </p>
-          <button
-            onClick={onFailed}
-            className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800 cursor-pointer"
-          >
-            Try Again
-          </button>
+          <button onClick={onFailed} className="ink-btn">Try Again</button>
         </div>
       )}
 
       {isTimedOut && !isFailed && !completedRef.current && (
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-3">
-            Deployment is taking longer than expected. It may still complete.
+          <p style={{ color: "var(--sumi-light)", fontSize: "0.9rem", marginBottom: "0.75rem", fontStyle: "italic" }}>
+            The crow is still circling. It may yet land.
           </p>
           <div className="flex justify-center gap-3">
-            <button
-              onClick={handleKeepWaiting}
-              className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800 cursor-pointer"
-            >
-              Keep Waiting
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={isCancelling}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-black cursor-pointer disabled:opacity-50"
-            >
+            <button onClick={handleKeepWaiting} className="ink-btn">Keep Waiting</button>
+            <button onClick={handleCancel} disabled={isCancelling} className="ink-btn-outline">
               {isCancelling ? "Cancelling..." : "Cancel"}
             </button>
           </div>
@@ -193,4 +137,3 @@ export default function DeployProgressView({
     </div>
   );
 }
-

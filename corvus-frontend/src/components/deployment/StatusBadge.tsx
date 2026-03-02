@@ -4,27 +4,50 @@ interface StatusBadgeProps {
   status: DeploymentStatus;
 }
 
-/** Small pill/badge showing deployment status */
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const styles = {
-    deploying: "bg-gray-100 text-gray-700 border-gray-300",
-    live: "bg-green-50 text-green-700 border-green-300",
-    failed: "bg-red-50 text-red-700 border-red-300",
+  const config: Record<DeploymentStatus, { bg: string; color: string; border: string; label: string; dot?: string }> = {
+    deploying: {
+      bg: "var(--paper-warm)",
+      color: "var(--sumi-light)",
+      border: "var(--sumi-ghost)",
+      label: "Deploying...",
+    },
+    live: {
+      bg: "var(--leaf-bg)",
+      color: "var(--leaf)",
+      border: "var(--leaf)",
+      label: "Live",
+      dot: "var(--leaf)",
+    },
+    failed: {
+      bg: "var(--vermillion-bg)",
+      color: "var(--vermillion)",
+      border: "var(--vermillion)",
+      label: "Failed",
+    },
   };
 
-  const labels = {
-    deploying: "Deploying...",
-    live: "Live",
-    failed: "Failed",
-  };
+  const c = config[status];
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}
+      className="inline-flex items-center gap-1.5 px-3 py-1 text-xs"
+      style={{
+        background: c.bg,
+        color: c.color,
+        border: `1.5px solid ${c.border}`,
+        borderRadius: "1px 3px 2px 1px",
+        fontFamily: '"EB Garamond", serif',
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        fontSize: "0.7rem",
+      }}
     >
-      {status === "live" && <span className="mr-1">🟢</span>}
-      {labels[status]}
+      {c.dot && (
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, display: "inline-block" }} />
+      )}
+      {c.label}
     </span>
   );
 }
-

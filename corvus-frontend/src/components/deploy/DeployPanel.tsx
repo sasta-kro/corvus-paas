@@ -1,4 +1,3 @@
-/** Container for deploy tabs — manages tab state and deploy actions */
 import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import DeployTabs from "./DeployTabs";
@@ -15,7 +14,6 @@ interface DeployPanelProps {
   onDeployStarted: (deployment: Deployment) => void;
 }
 
-/** Container for deploy tabs — manages tab state and deploy actions */
 export default function DeployPanel({ onDeployStarted }: DeployPanelProps) {
   const [activeTab, setActiveTab] = useState("quick");
   const [isDeploying, setIsDeploying] = useState(false);
@@ -29,7 +27,6 @@ export default function DeployPanel({ onDeployStarted }: DeployPanelProps) {
       if (message && preset.requiresTextInput) {
         envVars["VITE_CORVUS_MESSAGE"] = message;
       }
-
       const deployment = await createGitHubDeployment({
         name: preset.requiresTextInput ? "Custom Message" : preset.name,
         githubUrl: preset.githubUrl,
@@ -41,65 +38,42 @@ export default function DeployPanel({ onDeployStarted }: DeployPanelProps) {
       });
       onDeployStarted(deployment);
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to create deployment",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Failed to create deployment", "error");
       setIsDeploying(false);
     }
   };
 
-  const handleZipDeploy = async (
-    file: File,
-    outputDirectory: string,
-    buildCommand: string
-  ) => {
+  const handleZipDeploy = async (file: File, outputDirectory: string, buildCommand: string) => {
     setIsDeploying(true);
     try {
       const deployment = await createZipDeployment({
-        file,
-        outputDirectory,
-        buildCommand,
+        file, outputDirectory, buildCommand,
         friendCode: friendCode || undefined,
       });
       onDeployStarted(deployment);
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to create deployment",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Failed to create deployment", "error");
       setIsDeploying(false);
     }
   };
 
-  const handleGitHubDeploy = async (
-    repoUrl: string,
-    branch: string,
-    buildCommand: string,
-    outputDirectory: string
-  ) => {
+  const handleGitHubDeploy = async (repoUrl: string, branch: string, buildCommand: string, outputDirectory: string) => {
     setIsDeploying(true);
     try {
       const deployment = await createGitHubDeployment({
         name: extractNameFromGithubUrl(repoUrl),
-        githubUrl: repoUrl,
-        branch,
-        buildCommand,
-        outputDirectory,
+        githubUrl: repoUrl, branch, buildCommand, outputDirectory,
         friendCode: friendCode || undefined,
       });
       onDeployStarted(deployment);
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to create deployment",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Failed to create deployment", "error");
       setIsDeploying(false);
     }
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6">
+    <div className="ink-card torn-edge-1" style={{ zIndex: 10, position: "relative", transform: "rotate(-0.4deg)" }}>
       <DeployTabs activeTab={activeTab} onTabChange={setActiveTab}>
         <Tabs.Content value="quick">
           <QuickDeployTab onDeploy={handlePresetDeploy} disabled={isDeploying} />
@@ -114,4 +88,3 @@ export default function DeployPanel({ onDeployStarted }: DeployPanelProps) {
     </div>
   );
 }
-

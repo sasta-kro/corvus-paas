@@ -4,6 +4,7 @@ import StatusBadge from "./StatusBadge";
 import LiveUrlDisplay from "./LiveUrlDisplay";
 import CountdownTimer from "./CountdownTimer";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
+import InkSplatter from "../shared/InkSplatter";
 import { deleteDeployment, redeployDeployment } from "../../api/deployments";
 import { DEFAULT_TTL_MS } from "../../config/constants";
 import { useToast } from "../shared/Toast";
@@ -16,12 +17,8 @@ interface ActiveDeploymentViewProps {
   onExpired: () => void;
 }
 
-/** Live deployment card shown on the landing page */
 export default function ActiveDeploymentView({
-  deployment,
-  onDeleted,
-  onRedeployStarted,
-  onExpired,
+  deployment, onDeleted, onRedeployStarted, onExpired,
 }: ActiveDeploymentViewProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -29,101 +26,70 @@ export default function ActiveDeploymentView({
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const expiresAt = new Date(
-    new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS
-  );
+  const expiresAt = new Date(new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS);
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
-    try {
-      await deleteDeployment(deployment.id);
-      addToast("Deployment deleted", "success");
-      onDeleted();
-    } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to delete deployment",
-        "error"
-      );
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
+    try { await deleteDeployment(deployment.id); addToast("Deployment deleted", "success"); onDeleted(); }
+    catch (err) { addToast(err instanceof Error ? err.message : "Failed to delete deployment", "error"); }
+    finally { setIsDeleting(false); setShowDeleteDialog(false); }
   }, [deployment.id, onDeleted, addToast]);
 
   const handleRedeploy = useCallback(async () => {
     setIsRedeploying(true);
-    try {
-      const newDeployment = await redeployDeployment(deployment.id);
-      onRedeployStarted(newDeployment);
-    } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to redeploy",
-        "error"
-      );
-    } finally {
-      setIsRedeploying(false);
-    }
+    try { const d = await redeployDeployment(deployment.id); onRedeployStarted(d); }
+    catch (err) { addToast(err instanceof Error ? err.message : "Failed to redeploy", "error"); }
+    finally { setIsRedeploying(false); }
   }, [deployment.id, onRedeployStarted, addToast]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-md mx-auto text-center">
-      <div className="mb-3">
+    <>
+    <div className="ink-card torn-edge-3 max-w-md mx-auto text-center relative" style={{ zIndex: 10 }}>
+      <InkSplatter variant={2} size={60} style={{ top: -10, left: -10, opacity: 0.09 }} />
+
+      <div className="mb-4">
         <StatusBadge status="live" />
       </div>
 
-      <p className="text-lg font-semibold mb-1">Your site is live</p>
-      <p className="text-sm text-gray-500 mb-4">"{deployment.name}"</p>
+      <p className="font-brush text-xl mb-1" style={{ color: "var(--sumi)" }}>
+        Your site has taken flight
+      </p>
+      <p style={{ color: "var(--sumi-light)", fontSize: "0.9rem", marginBottom: "1.25rem", fontStyle: "italic" }}>
+        "{deployment.name}"
+      </p>
 
       {deployment.url && (
-        <div className="mb-4 flex justify-center">
+        <div className="mb-5 flex justify-center">
           <LiveUrlDisplay url={deployment.url} />
         </div>
       )}
 
-      <div className="flex justify-center gap-3 mb-4">
+      <div className="flex justify-center gap-3 mb-5">
         {deployment.url && (
-          <button
-            onClick={() => window.open(deployment.url, "_blank")}
-            className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800 cursor-pointer"
-          >
+          <button onClick={() => window.open(deployment.url, "_blank")} className="ink-btn">
             Open Site
           </button>
         )}
       </div>
 
-      <div className="mb-4">
+      <div className="mb-5">
         <CountdownTimer expiresAt={expiresAt} onExpired={onExpired} />
       </div>
 
+      <div className="brush-divider-thin mb-5" />
+
       <div className="flex justify-center gap-3">
-        <button
-          onClick={() => navigate(`/d/${deployment.id}`)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:border-black cursor-pointer"
-        >
-          View Details
-        </button>
-        <button
-          onClick={handleRedeploy}
-          disabled={isRedeploying}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:border-black cursor-pointer disabled:opacity-50"
-        >
+        <button onClick={() => navigate(`/d/${deployment.id}`)} className="ink-btn-outline">View Details</button>
+        <button onClick={handleRedeploy} disabled={isRedeploying} className="ink-btn-outline">
           {isRedeploying ? "Redeploying..." : "Redeploy"}
         </button>
-        <button
-          onClick={() => setShowDeleteDialog(true)}
-          className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:border-red-400 cursor-pointer"
-        >
-          Delete
-        </button>
+        <button onClick={() => setShowDeleteDialog(true)} className="ink-btn-danger">Delete</button>
       </div>
 
-      <DeleteConfirmDialog
-        isOpen={showDeleteDialog}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteDialog(false)}
-        isDeleting={isDeleting}
-      />
     </div>
+
+    <DeleteConfirmDialog isOpen={showDeleteDialog} onConfirm={handleDelete}
+      onCancel={() => setShowDeleteDialog(false)} isDeleting={isDeleting} />
+  </>
   );
 }
-

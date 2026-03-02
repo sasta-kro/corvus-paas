@@ -6,12 +6,12 @@
 
 # dev tools
 **/*temp*
+*old-archive/
 **/*repomix*
 **/myNotes/
 
 # secrets
-# **/*.db # will be tracked for a bit during development
-
+ **/*.db # will be tracked for a bit during development
 
 #### from frontend .gitignore
 # Logs
@@ -36,3 +36,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/corvus-frontend-old-archive/

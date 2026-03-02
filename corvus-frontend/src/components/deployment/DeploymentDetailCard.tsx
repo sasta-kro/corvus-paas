@@ -4,6 +4,7 @@ import StatusBadge from "./StatusBadge";
 import LiveUrlDisplay from "./LiveUrlDisplay";
 import CountdownTimer from "./CountdownTimer";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
+import InkSplatter from "../shared/InkSplatter";
 import { deleteDeployment, redeployDeployment } from "../../api/deployments";
 import { DEFAULT_TTL_MS } from "../../config/constants";
 import { formatTimestamp } from "../../lib/utils";
@@ -17,12 +18,8 @@ interface DeploymentDetailCardProps {
   onExpired?: () => void;
 }
 
-/** Full detail card for the deployment viewer page */
 export default function DeploymentDetailCard({
-  deployment,
-  onDeleted,
-  onRedeployStarted,
-  onExpired,
+  deployment, onDeleted, onRedeployStarted, onExpired,
 }: DeploymentDetailCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -30,132 +27,89 @@ export default function DeploymentDetailCard({
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const expiresAt = new Date(
-    new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS
-  );
+  const expiresAt = new Date(new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS);
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
-    try {
-      await deleteDeployment(deployment.id);
-      addToast("Deployment deleted", "success");
-      onDeleted();
-      navigate("/");
-    } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to delete deployment",
-        "error"
-      );
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
+    try { await deleteDeployment(deployment.id); addToast("Deployment deleted", "success"); onDeleted(); navigate("/"); }
+    catch (err) { addToast(err instanceof Error ? err.message : "Failed to delete deployment", "error"); }
+    finally { setIsDeleting(false); setShowDeleteDialog(false); }
   }, [deployment.id, onDeleted, addToast, navigate]);
 
   const handleRedeploy = useCallback(async () => {
     setIsRedeploying(true);
-    try {
-      const newDeployment = await redeployDeployment(deployment.id);
-      onRedeployStarted(newDeployment);
-    } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to redeploy",
-        "error"
-      );
-    } finally {
-      setIsRedeploying(false);
-    }
+    try { const d = await redeployDeployment(deployment.id); onRedeployStarted(d); }
+    catch (err) { addToast(err instanceof Error ? err.message : "Failed to redeploy", "error"); }
+    finally { setIsRedeploying(false); }
   }, [deployment.id, onRedeployStarted, addToast]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-lg mx-auto">
+    <>
+    <div className="ink-card torn-edge-1 max-w-lg mx-auto relative" style={{ zIndex: 10 }}>
+      <InkSplatter variant={1} size={45} style={{ top: -6, right: -6, opacity: 0.09 }} />
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">{deployment.name}</h2>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-brush text-xl" style={{ color: "var(--sumi)" }}>{deployment.name}</h2>
         <StatusBadge status={deployment.status} />
       </div>
 
       {/* Live URL */}
       {deployment.url && deployment.status === "live" && (
-        <div className="mb-4">
-          <LiveUrlDisplay url={deployment.url} />
-        </div>
+        <div className="mb-5"><LiveUrlDisplay url={deployment.url} /></div>
       )}
 
       {/* Countdown */}
       {deployment.status === "live" && (
-        <div className="mb-4">
-          <CountdownTimer expiresAt={expiresAt} onExpired={onExpired || (() => {})} />
-        </div>
+        <div className="mb-5"><CountdownTimer expiresAt={expiresAt} onExpired={onExpired || (() => {})} /></div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 mb-6">
         {deployment.url && deployment.status === "live" && (
-          <button
-            onClick={() => window.open(deployment.url, "_blank")}
-            className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800 cursor-pointer"
-          >
-            Open Site
-          </button>
+          <button onClick={() => window.open(deployment.url, "_blank")} className="ink-btn">Open Site</button>
         )}
-        <button
-          onClick={handleRedeploy}
-          disabled={isRedeploying}
-          className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:border-black cursor-pointer disabled:opacity-50"
-        >
+        <button onClick={handleRedeploy} disabled={isRedeploying} className="ink-btn-outline">
           {isRedeploying ? "Redeploying..." : "Redeploy"}
         </button>
-        <button
-          onClick={() => setShowDeleteDialog(true)}
-          className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:border-red-400 cursor-pointer"
-        >
-          Delete
-        </button>
+        <button onClick={() => setShowDeleteDialog(true)} className="ink-btn-danger">Delete</button>
       </div>
 
       {/* Metadata */}
-      <div className="border-t border-gray-200 pt-4 space-y-2 text-sm text-gray-500">
-        <div className="flex justify-between">
-          <span>Source</span>
-          <span className="text-black">
-            {deployment.source_type === "github" ? "GitHub" : "Zip Upload"}
-          </span>
-        </div>
-        {deployment.github_url && (
-          <div className="flex justify-between">
-            <span>Repository</span>
-            <a
-              href={deployment.github_url.replace(/\.git$/, "")}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-black underline truncate max-w-[200px]"
-            >
-              {deployment.github_url.replace(/\.git$/, "").split("/").slice(-2).join("/")}
-            </a>
+      <div className="brush-divider-thin mb-5" />
+      <div className="space-y-3" style={{ fontSize: "0.9rem" }}>
+        {[
+          { label: "Source", value: deployment.source_type === "github" ? "GitHub" : "Zip Upload" },
+          ...(deployment.github_url ? [{
+            label: "Repository",
+            value: deployment.github_url.replace(/\.git$/, "").split("/").slice(-2).join("/"),
+            href: deployment.github_url.replace(/\.git$/, ""),
+          }] : []),
+          { label: "Branch", value: deployment.branch },
+          { label: "Created", value: formatTimestamp(deployment.created_at) },
+          { label: "Updated", value: formatTimestamp(deployment.updated_at) },
+        ].map((row) => (
+          <div key={row.label} className="flex justify-between">
+            <span className="ink-label" style={{ marginBottom: 0, textTransform: "none", fontSize: "0.85rem" }}>
+              {row.label}
+            </span>
+            {"href" in row && row.href ? (
+              <a href={row.href} target="_blank" rel="noopener noreferrer"
+                className="truncate max-w-[200px]"
+                style={{ color: "var(--sumi)", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                {row.value}
+              </a>
+            ) : (
+              <span style={{ color: "var(--sumi)", fontWeight: 700 }}>{row.value}</span>
+            )}
           </div>
-        )}
-        <div className="flex justify-between">
-          <span>Branch</span>
-          <span className="text-black">{deployment.branch}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Created</span>
-          <span className="text-black">{formatTimestamp(deployment.created_at)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Updated</span>
-          <span className="text-black">{formatTimestamp(deployment.updated_at)}</span>
-        </div>
+        ))}
       </div>
 
-      <DeleteConfirmDialog
-        isOpen={showDeleteDialog}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteDialog(false)}
-        isDeleting={isDeleting}
-      />
     </div>
+
+    <DeleteConfirmDialog isOpen={showDeleteDialog} onConfirm={handleDelete}
+      onCancel={() => setShowDeleteDialog(false)} isDeleting={isDeleting} />
+  </>
   );
 }
-

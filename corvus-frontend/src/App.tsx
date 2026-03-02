@@ -4,13 +4,14 @@ import Footer from "./components/layout/Footer";
 import LandingPage from "./pages/LandingPage";
 import DeploymentViewerPage from "./pages/DeploymentViewerPage";
 import { ToastProvider } from "./components/shared/Toast";
+import FeatherFall from "./components/shared/FeatherFall";
 
-/** Root app component with routing and global providers */
 function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        <div className="min-h-screen flex flex-col bg-white text-black">
+        <div className="min-h-screen flex flex-col relative painted-frame">
+          <FeatherFall />
           <Header />
           <Routes>
             <Route path="/" element={<LandingPage />} />

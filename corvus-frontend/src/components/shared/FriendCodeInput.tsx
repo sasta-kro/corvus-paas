@@ -2,75 +2,71 @@ import { useState } from "react";
 import { useFriendCode } from "../../hooks/useFriendCode";
 import { validateFriendCode } from "../../api/deployments";
 
-/** Small friend code input widget for the header */
 export default function FriendCodeInput() {
-  const { friendCode, setFriendCode, clearFriendCode, hasFriendCode } =
-    useFriendCode();
+  const { friendCode, setFriendCode, clearFriendCode, hasFriendCode } = useFriendCode();
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
 
   const handleApply = async () => {
     if (!inputValue.trim()) return;
-    setIsValidating(true);
-    setError("");
+    setIsValidating(true); setError("");
     try {
       const result = await validateFriendCode(inputValue.trim());
-      if (result.valid) {
-        setFriendCode(inputValue.trim());
-        setInputValue("");
-      } else {
-        setError("Invalid code");
-      }
-    } catch {
-      // If validate endpoint doesn't exist, just store the code
-      setFriendCode(inputValue.trim());
-      setInputValue("");
-    } finally {
-      setIsValidating(false);
-    }
+      if (result.valid) { setFriendCode(inputValue.trim()); setInputValue(""); }
+      else { setError("Invalid code"); }
+    } catch { setFriendCode(inputValue.trim()); setInputValue(""); }
+    finally { setIsValidating(false); }
   };
 
   if (hasFriendCode) {
     return (
-      <div className="flex items-center gap-2 text-xs">
-        <span className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-gray-700">
-          Extended access ✓
+      <div className="flex items-center gap-2" style={{ fontSize: "0.8rem" }}>
+        <span style={{
+          padding: "0.2rem 0.5rem",
+          background: "var(--leaf-bg)",
+          border: "1px solid var(--leaf)",
+          color: "var(--leaf)",
+          borderRadius: "1px",
+          fontFamily: '"EB Garamond", serif',
+          fontWeight: 700,
+        }}>
+          Extended access
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ display: "inline-block", verticalAlign: "middle", marginLeft: "4px" }}>
+            <path d="M2 7.5L5.5 11L12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
-        <button
-          onClick={clearFriendCode}
-          className="text-gray-400 hover:text-gray-600 cursor-pointer"
+        <button onClick={clearFriendCode} className="cursor-pointer transition-colors"
+          style={{ color: "var(--sumi-ghost)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--sumi)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--sumi-ghost)")}
           title={`Remove code: ${friendCode}`}
         >
-          ×
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-gray-500 hidden sm:inline">Access code?</span>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => {
-          setInputValue(e.target.value);
-          setError("");
-        }}
+    <div className="flex items-center gap-2" style={{ fontSize: "0.8rem" }}>
+      <span className="hidden sm:inline" style={{ color: "var(--sumi-wash)", fontStyle: "italic" }}>
+        Access code?
+      </span>
+      <input type="text" value={inputValue}
+        onChange={(e) => { setInputValue(e.target.value); setError(""); }}
         onKeyDown={(e) => e.key === "Enter" && handleApply()}
         placeholder="Enter code"
-        className="px-2 py-1 border border-gray-300 rounded text-xs w-24 focus:outline-none focus:border-black"
+        className="ink-input"
+        style={{ width: "6rem", padding: "0.2rem 0.5rem", fontSize: "0.8rem", borderBottomWidth: "1.5px" }}
       />
-      <button
-        onClick={handleApply}
-        disabled={isValidating || !inputValue.trim()}
-        className="px-2 py-1 bg-black text-white rounded text-xs hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-      >
+      <button onClick={handleApply} disabled={isValidating || !inputValue.trim()}
+        className="ink-btn" style={{ padding: "0.2rem 0.6rem", fontSize: "0.8rem" }}>
         {isValidating ? "..." : "Apply"}
       </button>
-      {error && <span className="text-red-500">{error}</span>}
+      {error && <span style={{ color: "var(--vermillion)", fontSize: "0.75rem" }}>{error}</span>}
     </div>
   );
 }
-
