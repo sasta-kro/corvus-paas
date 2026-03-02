@@ -11,19 +11,19 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
   const [repoUrl, setRepoUrl] = useState("");
   const [branch, setBranch] = useState("main");
   const [buildCommand, setBuildCommand] = useState("");
-  const [outputDirectory, setOutputDirectory] = useState("dist");
+  const [outputDirectory, setOutputDirectory] = useState(".");
   const [urlError, setUrlError] = useState("");
   const [buildError, setBuildError] = useState("");
 
   const validate = (): boolean => {
     let valid = true;
     if (!isValidGithubUrl(repoUrl)) { setUrlError("Only public GitHub repositories are supported."); valid = false; } else { setUrlError(""); }
-    if (!buildCommand.trim()) { setBuildError("Build command is required for GitHub deployments."); valid = false; } else { setBuildError(""); }
+    setBuildError("");
     return valid;
   };
 
   const handleDeploy = () => {
-    if (validate()) onDeploy(repoUrl.trim(), branch.trim() || "main", buildCommand.trim(), outputDirectory.trim() || "dist");
+    if (validate()) onDeploy(repoUrl.trim(), branch.trim() || "main", buildCommand.trim(), outputDirectory.trim() || ".");
   };
 
   return (
@@ -43,20 +43,20 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
             placeholder="main" disabled={disabled} className="ink-input" />
         </div>
         <div>
-          <label htmlFor="gh-build-cmd" className="ink-label">Build Command</label>
+          <label htmlFor="gh-build-cmd" className="ink-label">Build Command (optional)</label>
           <input id="gh-build-cmd" type="text" value={buildCommand}
             onChange={(e) => { setBuildCommand(e.target.value); if (buildError) setBuildError(""); }}
-            placeholder="npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "times-new-roman" }} />
+            placeholder="e.g., npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "times-new-roman" }} />
           {buildError && <p style={{ color: "var(--vermillion)", fontSize: "0.8rem", marginTop: "0.3rem" }}>{buildError}</p>}
         </div>
         <div>
           <label htmlFor="gh-output-dir" className="ink-label">Output Directory</label>
           <input id="gh-output-dir" type="text" value={outputDirectory} onChange={(e) => setOutputDirectory(e.target.value)}
-            placeholder="dist" disabled={disabled} className="ink-input" />
+            placeholder="e.g., dist, build, ." disabled={disabled} className="ink-input" />
         </div>
       </div>
 
-      <DeployButton onClick={handleDeploy} disabled={disabled || !repoUrl.trim() || !buildCommand.trim()} loading={disabled} />
+      <DeployButton onClick={handleDeploy} disabled={disabled || !repoUrl.trim()} loading={disabled} />
     </div>
   );
 }
