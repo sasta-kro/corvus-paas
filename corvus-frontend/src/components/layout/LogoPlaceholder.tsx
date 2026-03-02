@@ -34,29 +34,29 @@ export default function LogoPlaceholder() {
             textShadow: "1px 1px 0 rgba(17,17,16,0.08)",
           }}
         >
-          Corvus
+          CorvusPaaS
         </span>
-        {/* Vermillion hanko seal */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          className="absolute -top-1 -right-4"
-          style={{ opacity: 0.85 }}
-        >
-          <rect x="1" y="1" width="12" height="12" rx="1" fill="var(--vermillion)" />
-          <text
-            x="7"
-            y="10"
-            textAnchor="middle"
-            fill="var(--paper)"
-            fontSize="7"
-            fontWeight="bold"
-            fontFamily="serif"
-          >
-            鴉
-          </text>
-        </svg>
+        {/* Vermillion hanko seal (chinese red seal)*/}
+        {/*<svg*/}
+        {/*  width="14"*/}
+        {/*  height="14"*/}
+        {/*  viewBox="0 0 14 14"*/}
+        {/*  className="absolute -top-1 -right-4"*/}
+        {/*  style={{ opacity: 0.85 }}*/}
+        {/*>*/}
+        {/*  <rect x="1" y="1" width="12" height="12" rx="1" fill="var(--vermillion)" />*/}
+        {/*  <text*/}
+        {/*    x="7"*/}
+        {/*    y="10"*/}
+        {/*    textAnchor="middle"*/}
+        {/*    fill="var(--paper)"*/}
+        {/*    fontSize="7"*/}
+        {/*    fontWeight="bold"*/}
+        {/*    fontFamily="serif"*/}
+        {/*  >*/}
+        {/*    鴉*/}
+        {/*  </text>*/}
+        {/*</svg>*/}
       </div>
     </div>
   );

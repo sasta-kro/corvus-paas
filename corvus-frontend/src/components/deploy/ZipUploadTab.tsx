@@ -41,6 +41,7 @@ export default function ZipUploadTab({ onDeploy, disabled }: ZipUploadTabProps) 
         <div>
           <label htmlFor="zip-build-cmd" className="ink-label">Build Command (optional)</label>
           <input id="zip-build-cmd" type="text" value={buildCommand} onChange={(e) => setBuildCommand(e.target.value)}
+            style={{ fontFamily: "times-new-roman" }}
             placeholder="e.g., npm ci && npm run build" disabled={disabled} className="ink-input" />
         </div>
       </div>

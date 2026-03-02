@@ -87,25 +87,25 @@ body {
   outline-offset: -8px;
 }
 
-/* Fold line — once-folded paper feel */
-.ink-card::before {
-  content: "";
-  position: absolute;
-  top: 10%;
-  bottom: 10%;
-  left: 38%;
-  width: 1px;
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(17,17,16,0.05) 20%,
-    rgba(17,17,16,0.07) 50%,
-    rgba(17,17,16,0.05) 80%,
-    transparent
-  );
-}
+/*!* Fold line — once-folded paper feel (doesn't look good so i commented it out) *!*/
+/*.ink-card::before {*/
+/*  content: "";*/
+/*  position: absolute;*/
+/*  top: 10%;*/
+/*  bottom: 10%;*/
+/*  left: 38%;*/
+/*  width: 1px;*/
+/*  pointer-events: none;*/
+/*  z-index: 1;*/
+/*  background: linear-gradient(*/
+/*    to bottom,*/
+/*    transparent,*/
+/*    rgba(17,17,16,0.05) 20%,*/
+/*    rgba(17,17,16,0.07) 50%,*/
+/*    rgba(17,17,16,0.05) 80%,*/
+/*    transparent*/
+/*  );*/
+/*}*/
 
 /* Corner ink blots + edge darkening + aging stain */
 .ink-card::after {

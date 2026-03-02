@@ -1,6 +1,12 @@
 import InkSplatter from "../shared/InkSplatter";
+import {useId} from "react";
 
 export default function HeroSection() {
+
+    const id = useId();
+    const gradId = `brush-ink-${id}`;
+    const filterId = `brush-tex-${id}`;
+
   return (
     <section className="text-center py-14 px-4 sm:px-6 relative" style={{ zIndex: 10 }}>
       {/* Decorative ink splatters */}
@@ -53,31 +59,36 @@ export default function HeroSection() {
           fontStyle: "italic",
         }}
       >
-        A self-hosted PaaS platform. Pick a preset, upload a zip,
-        or paste a GitHub URL.
+        A self-hosted PaaS platform. Pick a preset to try out,
+          upload a zip of your build, or paste a GitHub URL.
       </p>
 
       {/* Expressive dual-stroke brush divider */}
       <div className="mt-8 mx-auto" style={{ maxWidth: 260 }}>
         <svg width="100%" height="12" viewBox="0 0 260 12" preserveAspectRatio="none" fill="none">
-          {/* Primary S-curved organic stroke */}
-          <path
-            d="M0,6 C30,2 60,10 90,5 C120,0 150,11 180,6 C210,1 240,9 260,5"
-            stroke="var(--sumi)"
-            strokeWidth={3}
-            strokeLinecap="round"
-            opacity={0.5}
-            fill="none"
-          />
-          {/* Secondary ghost stroke — slightly offset */}
-          <path
-            d="M0,7 C35,3 65,11 95,6 C125,1 155,10 185,5 C215,2 245,8 260,6"
-            stroke="var(--sumi)"
-            strokeWidth={1}
-            strokeLinecap="round"
-            opacity={0.2}
-            fill="none"
-          />
+          {/*/!* Primary S-curved organic stroke *!/*/}
+          {/*<path*/}
+          {/*  d="M0,6 C30,2 60,10 90,5 C120,0 150,11 180,6 C210,1 240,9 260,5"*/}
+          {/*  stroke="var(--sumi)"*/}
+          {/*  strokeWidth={3}*/}
+          {/*  strokeLinecap="round"*/}
+          {/*  opacity={0.5}*/}
+          {/*  fill="none"*/}
+          {/*/>*/}
+          {/*/!* Secondary ghost stroke — slightly offset *!/*/}
+          {/*<path*/}
+          {/*  d="M0,7 C35,3 65,11 95,6 C125,1 155,10 185,5 C215,2 245,8 260,6"*/}
+          {/*  stroke="var(--sumi)"*/}
+          {/*  strokeWidth={1}*/}
+          {/*  strokeLinecap="round"*/}
+          {/*  opacity={0.2}*/}
+          {/*  fill="none"*/}
+          {/*/>*/}
+            <path
+                d="M0,5 C3,4 8,3.5 15,3 C30,2.2 50,1.5 70,0.8 C80,0.5 90,0.2 100,0 L100,10 C90,9.8 80,9.5 70,9.2 C50,8.5 30,7.8 15,7 C8,6.5 3,6 0,5Z"
+                fill={`url(#${gradId})`}
+                filter={`url(#${filterId})`}
+            />
         </svg>
       </div>
     </section>

@@ -76,8 +76,6 @@ export default function ActiveDeploymentView({
         <CountdownTimer expiresAt={expiresAt} onExpired={onExpired} />
       </div>
 
-      <div className="brush-divider-thin mb-5" />
-
       <div className="flex justify-center gap-3">
         <button onClick={() => navigate(`/d/${deployment.id}`)} className="ink-btn-outline">View Details</button>
         <button onClick={handleRedeploy} disabled={isRedeploying} className="ink-btn-outline">

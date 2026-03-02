@@ -313,7 +313,8 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	// the URL is constructed from the slug and set immediately so the client
 	// knows the public address before the container is even started.
 	// the container may not be live yet (status is "deploying") but the URL is deterministic.
-	deploymentURL := "http://" + slug + ".localhost"
+	deploymentURL := "https://" + slug + "." + "sasta.dev" // TODO properly pass down BaseDomain env var in AppConfig
+	// https cuz cloudflare tunnel provides that
 
 	// assemble the deployment model to put into database
 	deployment := &models.Deployment{

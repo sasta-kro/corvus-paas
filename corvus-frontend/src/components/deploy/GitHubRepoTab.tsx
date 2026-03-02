@@ -46,7 +46,7 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
           <label htmlFor="gh-build-cmd" className="ink-label">Build Command</label>
           <input id="gh-build-cmd" type="text" value={buildCommand}
             onChange={(e) => { setBuildCommand(e.target.value); if (buildError) setBuildError(""); }}
-            placeholder="npm ci && npm run build" disabled={disabled} className="ink-input" />
+            placeholder="npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "times-new-roman" }} />
           {buildError && <p style={{ color: "var(--vermillion)", fontSize: "0.8rem", marginTop: "0.3rem" }}>{buildError}</p>}
         </div>
         <div>
