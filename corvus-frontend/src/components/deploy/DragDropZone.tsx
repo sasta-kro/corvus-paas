@@ -105,9 +105,16 @@ export default function DragDropZone({
         opacity: disabled ? 0.5 : 1,
       }}
     >
-      {/* Small ink drop icon */}
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--sumi-ghost)" className="mx-auto mb-3">
-        <path d="M12 2C12 2 6 10 6 14a6 6 0 0 0 12 0c0-4-6-12-6-12zM12 18a4 4 0 0 1-4-4c0-1 0.3-2.2 1-3.5l3-5 3 5c0.7 1.3 1 2.5 1 3.5a4 4 0 0 1-4 4z" />
+      {/* Ink-style archive/zip icon */}
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sumi-ghost)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3">
+        {/* Folder/file shape */}
+        <path d="M4 4h5l2 2h9v14H4V4z" fill="none" />
+        {/* Zipper teeth down the center */}
+        <line x1="11" y1="9" x2="13" y2="9" />
+        <line x1="11" y1="12" x2="13" y2="12" />
+        <line x1="11" y1="15" x2="13" y2="15" />
+        {/* Zipper pull tab */}
+        <rect x="10.5" y="16.5" width="3" height="2" rx="0.5" fill="var(--sumi-ghost)" stroke="none" />
       </svg>
       <p style={{ color: "var(--sumi-light)", fontSize: "0.95rem" }}>
         {isDragOver ? "Drop your file here" : "Drag and drop a .zip file, or click to browse"}

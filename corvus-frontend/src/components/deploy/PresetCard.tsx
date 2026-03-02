@@ -22,11 +22,7 @@ function PresetIcon({ name }: { name: string }) {
       );
     case "crow":
       return (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={s}>
-          {/* Ink crow silhouette — perched bird */}
-          <path d="M4 18C4 18 5 14 7 12C9 10 10 9 10 7C10 5 9 3 9 3C9 3 12 5 13 7C14 9 14 10 15 11C16 12 18 13 20 13C20 13 18 15 15 15C14 15 13 15.5 12 16.5C11 17.5 10 19 10 19L8 19C8 19 8 17 7 16C6 15 4 18 4 18Z" stroke="var(--sumi)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          <circle cx="10.5" cy="6.5" r="0.8" fill="var(--sumi)" />
-        </svg>
+        <img src="/corvus-logo1-optimized.svg" alt="Corvus" width={25} style={{display: "block", margin: "-0.4rem"}} />
       );
     case "brush":
       return (

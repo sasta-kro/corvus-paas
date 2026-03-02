@@ -1,46 +1,37 @@
-/** Ambient falling crow feathers — realistic barbed feather shapes */
+/** Ambient falling crow feathers using actual ink-drawn feather SVG assets */
 
-/* Detailed crow feather SVG paths — each slightly different */
-const FEATHER_SHAPES = [
-  // Long flight feather — tapered with barb lines
-  `M12 1C12 1 10.5 4 10 8C9.5 12 9.8 16 10.5 20C10.8 22 11.5 23.5 12 24
-   C12.5 23.5 13.2 22 13.5 20C14.2 16 14.5 12 14 8C13.5 4 12 1 12 1Z
-   M12 4L10.2 9 M12 7L10 12 M12 10L9.8 15 M12 13L10.2 17 M12 16L10.5 19
-   M12 4L13.8 9 M12 7L14 12 M12 10L14.2 15 M12 13L13.8 17 M12 16L13.5 19`,
-  // Shorter body feather — rounder
-  `M12 3C12 3 9 7 8.5 11C8 15 9 19 10 21C10.8 22.5 11.5 23 12 23
-   C12.5 23 13.2 22.5 14 21C15 19 16 15 15.5 11C15 7 12 3 12 3Z
-   M12 6L9.5 10 M12 9L9 13 M12 12L9.5 16 M12 15L10 18
-   M12 6L14.5 10 M12 9L15 13 M12 12L14.5 16 M12 15L14 18`,
-  // Small downy feather — fluffier
-  `M12 5C12 5 9.5 8 9 11C8.5 14 9.5 17 10.5 19.5C11 20.5 11.6 21 12 21
-   C12.4 21 13 20.5 13.5 19.5C14.5 17 15.5 14 15 11C14.5 8 12 5 12 5Z
-   M12 7L10 10 M12 9.5L9.5 13 M12 12L10 15 M12 14.5L10.5 17
-   M12 7L14 10 M12 9.5L14.5 13 M12 12L14 15 M12 14.5L13.5 17`,
+const FEATHER_ASSETS = [
+  "/fluffy-feather-optimized.svg",
+  "/long-feather-optimized.svg",
+  "/round-feather-optimized.svg",
 ];
 
 const ANIMATION_NAMES = ["feather-drift", "feather-drift-2", "feather-drift-3"];
 
 interface FeatherData {
   id: number;
-  shape: number;
+  asset: number;
   left: number;
   delay: number;
   duration: number;
   size: number;
   animIndex: number;
   opacity: number;
+  rotation: number;
+  flipX: boolean;
 }
 
 const feathers: FeatherData[] = Array.from({ length: 18 }, (_, i) => ({
   id: i,
-  shape: i % FEATHER_SHAPES.length,
+  asset: i % FEATHER_ASSETS.length,
   left: 2 + ((i * 5.3 + 3) % 92),
   delay: i * 2.7 + Math.sin(i * 1.4) * 4,
   duration: 28 + (i % 7) * 6,
-  size: 24 + (i % 6) * 10,
+  size: 28 + (i % 6) * 12,
   animIndex: i % 3,
-  opacity: 0.12 + (i % 5) * 0.05,
+  opacity: 0.10 + (i % 5) * 0.04,
+  rotation: ((i * 47 + 13) % 360) - 180,
+  flipX: i % 2 === 0,
 }));
 
 export default function FeatherFall() {
@@ -61,19 +52,18 @@ export default function FeatherFall() {
             opacity: f.opacity,
           }}
         >
-          <svg
+          <img
+            src={FEATHER_ASSETS[f.asset]}
+            alt=""
             style={{
               width: "100%",
               height: "100%",
+              objectFit: "contain",
+              transform: `rotate(${f.rotation}deg)${f.flipX ? " scaleX(-1)" : ""}`,
               animation: `${ANIMATION_NAMES[f.animIndex]} ${f.duration}s ${f.delay}s linear infinite backwards`,
+              filter: "brightness(0) opacity(0.7)",
             }}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--sumi)"
-            strokeWidth={f.size > 50 ? 0.5 : 0.8}
-          >
-            <path d={FEATHER_SHAPES[f.shape]} fill="var(--sumi)" fillOpacity="0.7" />
-          </svg>
+          />
         </div>
       ))}
     </div>

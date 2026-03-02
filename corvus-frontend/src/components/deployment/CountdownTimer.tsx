@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCountdown } from "../../hooks/useCountdown";
+import ShowcaseDisclaimer from "./ShowcaseDisclaimer";
 
 interface CountdownTimerProps {
   expiresAt: Date;
@@ -26,8 +27,12 @@ export default function CountdownTimer({ expiresAt, onExpired }: CountdownTimerP
       fontSize: "0.9rem",
       fontWeight: isWarning ? 700 : 400,
       color: isWarning ? "var(--vermillion)" : "var(--sumi-light)",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.4rem",
     }}>
       Expires in {formattedTime}
+      <ShowcaseDisclaimer />
     </span>
   );
 }

@@ -95,16 +95,16 @@ A standalone page for viewing a single deployment. Users reach this by:
 **Layout:**
 - Header bar (same as landing page, with logo and friend code)
 - Centered card showing:
-    - Deployment name
-    - Status badge (deploying / live / failed / expired)
-    - Live URL (clickable, opens in new tab) — only shown when status is live
-    - Countdown timer — only shown when status is live
-    - "Open Site" button — opens the deployed site in a new tab
-    - "Copy Link" button — copies the deployment URL to clipboard
-    - "Redeploy" button — triggers `POST /api/deployments/:uuid/redeploy`
-    - "Delete" button — triggers `DELETE /api/deployments/:uuid`, then redirects to `/`
-    - Source info: shows whether it was a zip upload, GitHub repo, or preset
-    - Timestamps: created at, last updated
+  - Deployment name
+  - Status badge (deploying / live / failed / expired)
+  - Live URL (clickable, opens in new tab) — only shown when status is live
+  - Countdown timer — only shown when status is live
+  - "Open Site" button — opens the deployed site in a new tab
+  - "Copy Link" button — copies the deployment URL to clipboard
+  - "Redeploy" button — triggers `POST /api/deployments/:uuid/redeploy`
+  - "Delete" button — triggers `DELETE /api/deployments/:uuid`, then redirects to `/`
+  - Source info: shows whether it was a zip upload, GitHub repo, or preset
+  - Timestamps: created at, last updated
 - If the deployment does not exist (404 from API), show a "Deployment not found" message with a link back to `/`.
 
 ---
@@ -171,10 +171,10 @@ Displays 4 preset cards in a 2x2 grid (or 4-column row on wide screens, stacking
 - Description: "Create a page with your custom message."
 - Icon/emoji placeholder: ✍️
 - On click: does NOT immediately deploy. Instead, shows a text input modal/inline field:
-    - Label: "What should your page say?"
-    - Input: text field, max 100 characters, character counter shown
-    - Submit button: "Deploy My Message"
-    - On submit: sends create deployment request with the user's text as an environment variable
+  - Label: "What should your page say?"
+  - Input: text field, max 100 characters, character counter shown
+  - Submit button: "Deploy My Message"
+  - On submit: sends create deployment request with the user's text as an environment variable
 - Preset config:
   ```
   name: "Custom Message"
@@ -193,16 +193,16 @@ Displays 4 preset cards in a 2x2 grid (or 4-column row on wide screens, stacking
 
 **Layout:**
 - Drag-and-drop zone: a dashed-border rectangle area
-    - Default state: "Drag and drop a .zip file here, or click to browse"
-    - Hover/dragover state: border color change, "Drop your file here"
-    - File selected state: shows file name, file size, and a remove button (X)
+  - Default state: "Drag and drop a .zip file here, or click to browse"
+  - Hover/dragover state: border color change, "Drop your file here"
+  - File selected state: shows file name, file size, and a remove button (X)
 - Below the drop zone:
-    - "Output Directory" text input (default value: `.`, placeholder: `e.g., dist, build, .`)
-    - "Build Command" text input (optional, placeholder: `e.g., npm ci && npm run build`)
+  - "Output Directory" text input (default value: `.`, placeholder: `e.g., dist, build, .`)
+  - "Build Command" text input (optional, placeholder: `e.g., npm ci && npm run build`)
 - "Deploy" button: disabled until a file is selected
 - File size validation:
-    - If file > 50MB: show inline error "File exceeds the 50MB limit", disable deploy button
-    - Show file size next to file name after selection
+  - If file > 50MB: show inline error "File exceeds the 50MB limit", disable deploy button
+  - Show file size next to file name after selection
 
 **Drag-and-drop behavior:**
 - Accept only `.zip` files. If user drops a non-zip file, show inline error "Only .zip files are accepted"
@@ -363,10 +363,10 @@ For zip uploads specifically, add an upload progress indicator between step 1 an
 
 - When the landing page loads, check `localStorage` for `corvus_active_deployment_id` and `corvus_active_deployment_slug`.
 - If found, poll `GET /api/deployments/:id`:
-    - If response is 200 and status is `"live"`: show the active deployment view instead of the deploy panel. The user cannot create a new deployment until this one expires or is deleted.
-    - If response is 200 and status is `"deploying"`: show the progress view.
-    - If response is 200 and status is `"failed"`: clear `localStorage`, show the deploy panel with an error toast.
-    - If response is 404: the deployment expired or was deleted. Clear `localStorage`, show the deploy panel.
+  - If response is 200 and status is `"live"`: show the active deployment view instead of the deploy panel. The user cannot create a new deployment until this one expires or is deleted.
+  - If response is 200 and status is `"deploying"`: show the progress view.
+  - If response is 200 and status is `"failed"`: clear `localStorage`, show the deploy panel with an error toast.
+  - If response is 404: the deployment expired or was deleted. Clear `localStorage`, show the deploy panel.
 - When a new deployment is created: store `{ id, slug }` in `localStorage`.
 - When a deployment is deleted: clear `localStorage`.
 
@@ -667,10 +667,10 @@ Polls a deployment's status at a regular interval.
 - On mount (if `deploymentId` is not null and `enabled` is true), immediately fetch once
 - Then set an interval to fetch every `intervalMs`
 - Stop polling when:
-    - `deploymentId` becomes null
-    - `enabled` becomes false
-    - `deployment.status` is `"live"` or `"failed"` (terminal states)
-    - The API returns 404
+  - `deploymentId` becomes null
+  - `enabled` becomes false
+  - `deployment.status` is `"live"` or `"failed"` (terminal states)
+  - The API returns 404
 - Clean up the interval on unmount
 - Uses `useEffect` with `deploymentId`, `intervalMs`, and `enabled` as dependencies
 
@@ -859,11 +859,11 @@ The state is managed by a single `useState<"checking" | "deploy" | "progress" | 
 - Renders the `DeployTabs` component with tab switching logic
 - Each tab component receives the `isDeploying` state and the `onDeployStarted` callback
 - When any tab triggers a deploy:
-    1. Sets `isDeploying` to true
-    2. Calls the appropriate API function
-    3. On success: calls `onDeployStarted(deployment)`
-    4. On error: sets `isDeploying` to false, shows error toast
-    5. Friend code from `useFriendCode` is passed to every API call
+  1. Sets `isDeploying` to true
+  2. Calls the appropriate API function
+  3. On success: calls `onDeployStarted(deployment)`
+  4. On error: sets `isDeploying` to false, shows error toast
+  5. Friend code from `useFriendCode` is passed to every API call
 
 ### 13.2 `PresetCard.tsx`
 
@@ -875,8 +875,8 @@ The state is managed by a single `useState<"checking" | "deploy" | "progress" | 
 **Behavior:**
 - Renders a card with the preset's icon, name, and description
 - On click:
-    - If `preset.requiresTextInput` is true: opens `MessageInputModal`
-    - Otherwise: calls `onDeploy(preset)` immediately
+  - If `preset.requiresTextInput` is true: opens `MessageInputModal`
+  - Otherwise: calls `onDeploy(preset)` immediately
 - Visual feedback: hover state (border color change or slight scale), disabled state (opacity reduction, no pointer events)
 
 ### 13.3 `MessageInputModal.tsx`
@@ -913,10 +913,10 @@ The state is managed by a single `useState<"checking" | "deploy" | "progress" | 
 - Renders a dashed-border rectangle
 - Handles `onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop` events
 - On drop:
-    - Checks the file extension is `.zip`
-    - Checks the file size against `MAX_FILE_SIZE_BYTES`
-    - If valid: calls `onFileSelected(file)`
-    - If invalid: sets the `error` prop via parent callback
+  - Checks the file extension is `.zip`
+  - Checks the file size against `MAX_FILE_SIZE_BYTES`
+  - If valid: calls `onFileSelected(file)`
+  - If invalid: sets the `error` prop via parent callback
 - Contains a hidden `<input type="file" accept=".zip">` triggered by clicking the zone
 - When a file is selected: displays file name, formatted file size (e.g., "2.4 MB"), and a remove button (X)
 - When a file is removed: calls `onFileRemoved()`
@@ -955,15 +955,15 @@ The state is managed by a single `useState<"checking" | "deploy" | "progress" | 
 **Renders:**
 - A single row with an icon on the left and the label text on the right
 - Icon by status:
-    - `completed`: checkmark (✓) in muted color
-    - `in-progress`: spinner or pulsing dot
-    - `pending`: empty circle (○) in muted color
-    - `failed`: X mark in red
+  - `completed`: checkmark (✓) in muted color
+  - `in-progress`: spinner or pulsing dot
+  - `pending`: empty circle (○) in muted color
+  - `failed`: X mark in red
 - Text styling by status:
-    - `completed`: muted/gray text
-    - `in-progress`: normal weight text
-    - `pending`: muted/gray text
-    - `failed`: red text
+  - `completed`: muted/gray text
+  - `in-progress`: normal weight text
+  - `pending`: muted/gray text
+  - `failed`: red text
 
 ### 13.7 `CountdownTimer.tsx`
 
