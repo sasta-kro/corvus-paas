@@ -110,7 +110,7 @@ func (dockerClient *DockerClient) CreateAndStartNginxContainer(context context.C
 		// automatically configure routing rules. when this container starts,
 		// Traefik picks up the labels and begins routing <slug>.localhost to it.
 		// no Traefik config file reload is required. this is the "Netlify magic".
-		Labels: traefikLabels(config.Slug), // helper func
+		Labels: traefikLabels(config.Slug, config.TraefikNetwork), // helper func
 
 		// Why not set a Cmd field here?
 		// The 'nginx:alpine' image inherently knows how to start its own web server process.
@@ -430,11 +430,12 @@ func (dockerClient *DockerClient) pullImageIfNotPresent(context context.Context,
 //     (required because exposedByDefault: false in traefik.yml)
 //   - traefik.http.routers.<slug>.rule          -- match requests where the Host header equals <slug>.localhost
 //   - traefik.http.services.<slug>.loadbalancer -- tell Traefik which port inside the container to proxy to
-func traefikLabels(slug string) map[string]string {
+func traefikLabels(slug string, traefikNetwork string) map[string]string {
 	return map[string]string{
 		"traefik.enable":                                              "true",
 		"traefik.http.routers." + slug + ".rule":                      "Host(`" + slug + "-corvus.sasta.dev`)",
 		"traefik.http.services." + slug + ".loadbalancer.server.port": "80",
+		"traefik.docker.network":                                      traefikNetwork,
 	}
 }
 
