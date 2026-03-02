@@ -43,7 +43,7 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
             placeholder="main" disabled={disabled} className="ink-input" />
         </div>
         <div>
-          <label htmlFor="gh-build-cmd" className="ink-label">Build Command (optional)</label>
+          <label htmlFor="gh-build-cmd" className="ink-label">Build Command</label>
           <input id="gh-build-cmd" type="text" value={buildCommand}
             onChange={(e) => { setBuildCommand(e.target.value); if (buildError) setBuildError(""); }}
             placeholder="e.g., npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "times-new-roman" }} />

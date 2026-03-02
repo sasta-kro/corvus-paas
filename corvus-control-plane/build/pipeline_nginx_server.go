@@ -56,6 +56,37 @@ func (deployerPipeline *DeployerPipeline) deployToNginx(
 		return false
 	}
 
+	// ===== Validate that index.html exists in the output directory
+	// Nginx's default config serves index.html from the web root. If it is missing,
+	// the site will return 403 Forbidden (directory listing is disabled by default).
+	// This is almost always a user error, they picked the wrong output directory
+	// (eg, "." on a repo where index.html is inside a subdirectory like "Dashboard/").
+	// Failing here with a clear message is much better UX than a silent 403 after deploy.
+	indexPath := filepath.Join(outputDirectory, "index.html")
+	if _, errIndex := os.Stat(indexPath); errors.Is(errIndex, os.ErrNotExist) {
+		// list the top-level entries in the output directory to help the user
+		// figure out which subdirectory they should have picked.
+		hint := ""
+		entries, errReadDir := os.ReadDir(outputDirectory)
+		if errReadDir == nil {
+			var dirs []string
+			for _, entry := range entries {
+				if entry.IsDir() && entry.Name()[0] != '.' {
+					dirs = append(dirs, entry.Name())
+				}
+			}
+			if len(dirs) > 0 {
+				hint = fmt.Sprintf(". Found subdirectories: %v — try setting output directory to one of these", dirs)
+			}
+		}
+
+		pipelineLogger.logFailureAndUpdateStatus(
+			fmt.Sprintf("no index.html found in output directory %q%s", deployment.OutputDirectory, hint),
+			fmt.Errorf("index.html not found at %s", indexPath),
+		)
+		return false
+	}
+
 	// ===== Copying the output directory to the asset storage root.
 	// the asset storage root is the stable location bind-mounted into the Nginx container.
 	// working directories are ephemeral (temp). the asset storage root persists across deploys.
