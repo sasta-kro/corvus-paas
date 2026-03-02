@@ -56,6 +56,7 @@ export default function HeroSection() {
             r="140"
             stroke={`url(#${gradId}-enso-op)`}
             strokeWidth={22}
+
               // gap size - The circumference of the circle is 2 * π * 140 ≈ 880. 10% gap = 88, so the dash should be 792 88.
             strokeDasharray="792 88"
             strokeLinecap="round"
