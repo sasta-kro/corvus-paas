@@ -247,8 +247,80 @@ Corvus v1 is a working proof-of-concept that proves the pipeline works end-to-en
 The v1 is a single-node system. Everything after that is about removing the single-node assumption and turning this into software that can run at any scale.
 
 ---
-## TODO
-update readme on preset deployment setup for people who plan to locally host this. like where to put the folders and such
+
+## Dev Notes (self-reference for migration/setup)
+
+### Filesystem layout on the VM
+
+Everything lives under `/srv/corvus-paas/` by default. These paths are configurable via env vars.
+
+```
+/srv/corvus-paas/
+  deployments/          # ASSET_STORAGE_ROOT - each deployment's static files
+    swift-hawk-c142/    #   one folder per slug, bind-mounted into its nginx container
+    north-mill-8b03/
+  logs/                 # LOG_ROOT - all log files go here
+    corvus-2026-03-03_02-52-45.log   # global app log (one per run, timestamped)
+    corvus-2026-03-03_14-30-00.log   # next run gets a new file
+    swift-hawk-c142.log              # per-deployment build/deploy log
+    north-mill-8b03.log
+  presets/              # PRESET_STORAGE_ROOT - prebuilt static files for quick deploy cards
+    vite-starter/       #   each folder is a preset ID, contains the built dist/ contents
+      index.html
+      corvus.svg
+      vite.svg
+      assets/
+    react-app/
+      index.html
+      ...
+    your-message/
+      index.html        #   has {{CORVUS_MESSAGE}} in data-message attribute, replaced at deploy time
+      ...
+```
+
+### How logging works
+
+There are two kinds of logs.
+
+1. **Global app log** (`corvus-YYYY-MM-DD_HH-MM-SS.log`): The slog logger writes to both stdout and a timestamped file in `LOG_ROOT`. A new file is created every time the binary starts. When running as a background process or systemd service, this is how to read the logs. The format (text vs JSON) is controlled by `LOG_FORMAT`.
+
+2. **Per-deployment log** (`<slug>.log`): Each deployment pipeline (zip, github, prebuilt) opens its own log file and writes build output, git clone output, and pipeline status messages to it. These are the logs that would eventually be streamed to the frontend via SSE.
+
+### How presets work
+
+Presets come in two types.
+
+- **Prebuilt** (`source_type: "prebuilt"`): Vite Starter, React App, Your Message. The backend copies files from `PRESET_STORAGE_ROOT/<preset_id>/` directly into the deployment's asset directory and starts nginx. No clone, no build container. Deploys in ~1 second.
+
+- **GitHub** (`source_type: "github"`): About Corvus. Clones from a real public repo, runs the build command in an ephemeral container, then deploys. Same pipeline as a user-submitted GitHub URL.
+
+To add a new prebuilt preset:
+1. Build the project locally (`npm run build`)
+2. Copy the `dist/` contents to `/srv/corvus-paas/presets/<new-preset-id>/` on the VM
+3. Add the preset config to `corvus-frontend/src/config/constants.ts`
+4. Make sure there's an `index.html` at the root of the preset folder (the pipeline validates this)
+
+The "Your Message" preset is special: the built `index.html` has `data-message="{{CORVUS_MESSAGE}}"` on the root div. After copying to the asset directory, the pipeline does a `strings.ReplaceAll` to inject the user's message. The original preset files are never modified.
+
+### Migrating to a new VM
+
+1. Install Docker, create the `corvus-paas-network` network, start Traefik from `server-infrastructure/router-traefik/docker-compose.yml`
+2. Create `/srv/corvus-paas/` with subdirs: `deployments/`, `logs/`, `presets/`
+3. Copy the preset folders (`vite-starter/`, `react-app/`, `your-message/`) into `presets/`
+4. Set up Cloudflare Tunnel pointing to the VM (wildcard `*.corvus.yourdomain.dev` to Traefik, and `api-corvus.yourdomain.dev` to the Go backend on :8080)
+5. Build the binary: `cd corvus-control-plane && go build -o corvus-paas .`
+6. Set env vars (or use defaults) and run it. The SQLite DB is auto-created on first run.
+7. Deploy the frontend to Cloudflare Pages (or wherever) with `VITE_API_BASE_URL` pointing to the backend
+
+The binary is self-contained. No runtime dependencies beyond Docker on the host.
+
+### SQLite DB
+
+Single file at `DB_PATH` (default `./corvus.db`). Schema is auto-migrated on startup via `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE` guards for new columns. Safe to delete the DB file to start fresh, there's no state that can't be recreated.
+
+### Docker network
+
+All deployment containers and Traefik must be on the same Docker network (`corvus-paas-network`). The Go backend attaches each nginx container to this network with Traefik routing labels. If containers can't reach each other, check `docker network ls` and make sure the network exists and Traefik is connected to it.
 
 
 ## License
