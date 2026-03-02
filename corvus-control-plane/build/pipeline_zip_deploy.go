@@ -207,10 +207,11 @@ func (deployerPipeline *DeployerPipeline) RedeployExistingZip(deployment *models
 		return
 	}
 
-	pipelineLogger.logInfo("redeploy complete. site is live at http://%s.localhost", deployment.Slug)
+	// TODO fix url hardcode here
+	pipelineLogger.logInfo("redeploy complete. site is live at https://%s-corvus.sasta.dev", deployment.Slug)
 	deployerPipeline.logger.Info("redeploy live",
 		"id", deployment.ID,
 		"slug", deployment.Slug,
-		"url", "http://"+deployment.Slug+".localhost",
+		"url", "https://"+deployment.Slug+"-corvus.sasta.dev",
 	)
 }

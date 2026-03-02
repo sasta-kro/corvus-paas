@@ -110,12 +110,13 @@ func (deployerPipeline *DeployerPipeline) deployToNginx(
 		return false
 	}
 
-	pipelineLogger.logInfo("deployment complete. site is live at http://%s.localhost", deployment.Slug)
+	// TODO fix hardcode here
+	pipelineLogger.logInfo("deployment complete. site is live at https://%s-corvus.sasta.dev", deployment.Slug)
 	// dw about the url being http and https since this is just for internal routing between traefik and docker
 	deployerPipeline.logger.Info("deployment live",
 		"id", deployment.ID,
 		"slug", deployment.Slug,
-		"url", "http://"+deployment.Slug+".localhost",
+		"url", "https://"+deployment.Slug+"-corvus.sasta.dev",
 	)
 
 	return true

@@ -223,10 +223,11 @@ func (dockerClient *DockerClient) CreateAndStartNginxContainer(context context.C
 		return fmt.Errorf("failed to start nginx container %q: %w", config.ContainerName, startError)
 	}
 
+	// TODO fix hardcoded url
 	dockerClient.logger.Info("nginx container started",
 		"container_name", config.ContainerName,
 		"slug", config.Slug,
-		"url", "http://"+config.Slug+".localhost",
+		"url", "https://"+config.Slug+"-corvus.sasta.dev",
 	)
 	// Why not https here?
 	// In a containerized environment, the connection between the reverse proxy (Traefik) and the
