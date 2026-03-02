@@ -672,6 +672,12 @@ body {
   }
 }
 
+/* Disclaimer speech bubble — simple fade in */
+@keyframes disclaimer-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 .animate-brush-reveal {
   animation: brush-reveal 0.5s ease-out forwards;
 }

@@ -88,7 +88,7 @@ export default function ShowcaseDisclaimer() {
             borderRadius: "2px",
             boxShadow: "3px 4px 0 -1px rgba(17,17,16,0.12)",
             zIndex: 50,
-            animation: "toast-brush-in 0.25s ease-out",
+            animation: "disclaimer-fade-in 0.15s ease-out",
           }}
         >
           {/* Speech bubble tail */}
