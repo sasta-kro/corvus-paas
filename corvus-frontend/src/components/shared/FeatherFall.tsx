@@ -28,7 +28,7 @@ Duration: 28–70s → 20–55s (fall faster, more movement on screen)
 Delay spacing: 2.7s apart → 1.8s apart (feathers appear sooner/closer together)
 Spread: slightly wider distribution (1–96% instead of 2–94%)
  */
-const feathers: FeatherData[] = Array.from({ length: 30 }, (_, i) => ({
+const feathers: FeatherData[] = Array.from({ length: 32 }, (_, i) => ({
   id: i,
   asset: i % FEATHER_ASSETS.length,
   left: 1 + ((i * 3.3 + 2) % 95),

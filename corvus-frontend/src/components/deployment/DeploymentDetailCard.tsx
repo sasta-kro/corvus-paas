@@ -81,7 +81,7 @@ export default function DeploymentDetailCard({
       <div className="brush-divider-thin mb-5" />
       <div className="space-y-3" style={{ fontSize: "0.9rem" }}>
         {[
-          { label: "Source", value: deployment.source_type === "github" ? "GitHub" : "Zip Upload" },
+          { label: "Source", value: deployment.source_type === "github" ? "GitHub" : deployment.source_type === "prebuilt" ? `Preset (${deployment.preset_id || "prebuilt"})` : "Zip Upload" },
           ...(deployment.github_url ? [{
             label: "Repository",
             value: deployment.github_url.replace(/\.git$/, "").split("/").slice(-2).join("/"),

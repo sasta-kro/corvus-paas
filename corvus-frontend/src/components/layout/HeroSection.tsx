@@ -14,36 +14,61 @@ export default function HeroSection() {
       <InkSplatter variant={2} size={55} style={{ top: 60, right: "12%", opacity: 0.07 }} />
       <InkSplatter variant={1} size={45} style={{ bottom: 30, left: "5%", opacity: 0.06 }} />
 
-      {/* Ensō — large faded ink circle behind heading */}
-      <svg
-        width="320"
-        height="320"
-        viewBox="0 0 320 320"
-        fill="none"
+      {/* Ensō — animated ink brush circle behind heading */}
+      <div
         style={{
           position: "absolute",
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          opacity: 0.045,
           pointerEvents: "none",
         }}
       >
-        <circle
-          cx="160"
-          cy="160"
-          r="140"
-          stroke="var(--sumi)"
-          strokeWidth={18}
-          strokeDasharray="780 100"
-          strokeLinecap="round"
+        <svg
+          width="340"
+          height="340"
+          viewBox="0 0 340 340"
           fill="none"
-        />
-      </svg>
+          style={{
+            opacity: 0.13,
+            animation: "enso-spin 60s linear infinite",
+          }}
+        >
+          <defs>
+            <linearGradient id={`${gradId}-enso-op`} gradientUnits="userSpaceOnUse" x1="40" y1="230" x2="300" y2="110">
+              <stop offset="0%" stopColor="var(--sumi)" stopOpacity={0} />
+              <stop offset="8%" stopColor="var(--sumi)" stopOpacity={0.6} />
+              <stop offset="20%" stopColor="var(--sumi)" stopOpacity={1} />
+              <stop offset="50%" stopColor="var(--sumi)" stopOpacity={1} />
+              <stop offset="75%" stopColor="var(--sumi)" stopOpacity={0.8} />
+              <stop offset="90%" stopColor="var(--sumi)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--sumi)" stopOpacity={0} />
+            </linearGradient>
+            <filter id={`${filterId}-enso`}>
+              <feTurbulence type="fractalNoise" baseFrequency="0.03 0.06" numOctaves="4" seed="12" />
+              <feDisplacementMap in="SourceGraphic" scale="5" />
+            </filter>
+          </defs>
+          {/* Single brush stroke arc — ~75% of a circle with organic distortion */}
+          <circle
+            cx="170"
+            cy="170"
+            r="140"
+            stroke={`url(#${gradId}-enso-op)`}
+            strokeWidth={22}
+              // gap size - The circumference of the circle is 2 * π * 140 ≈ 880. 10% gap = 88, so the dash should be 792 88.
+            strokeDasharray="792 88"
+            strokeLinecap="round"
+            fill="none"
+            filter={`url(#${filterId}-enso)`}
+          />
+        </svg>
+      </div>
 
       <h1
         className="font-brush text-5xl sm:text-6xl mb-5 leading-tight"
         style={{
+          marginTop: "-3rem",
           color: "var(--sumi)",
           textShadow: "1px 1px 0 rgba(17,17,16,0.15), 0 0 8px rgba(17,17,16,0.04)",
         }}

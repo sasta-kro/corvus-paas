@@ -572,6 +572,12 @@ body {
   }
 }
 
+/* Ensō — slow rotation */
+@keyframes enso-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Ink brush circle — loading */
 @keyframes ink-circle-draw {
   0% {
