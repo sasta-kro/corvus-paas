@@ -27,7 +27,7 @@ node_modules
 dist
 dist-ssr
 *.local
-**/.claude
+**/*.claude*/*
 resources-archives/
 
 # Editor directories and files

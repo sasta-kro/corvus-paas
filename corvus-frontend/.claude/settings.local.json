@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch(domain:fonts.google.com)",
-      "WebFetch(domain:fonts.googleapis.com)"
-    ]
-  }
-}
