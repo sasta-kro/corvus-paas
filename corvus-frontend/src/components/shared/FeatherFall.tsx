@@ -21,15 +21,15 @@ interface FeatherData {
   flipX: boolean;
 }
 
-const feathers: FeatherData[] = Array.from({ length: 18 }, (_, i) => ({
+const feathers: FeatherData[] = Array.from({ length: 30 }, (_, i) => ({
   id: i,
   asset: i % FEATHER_ASSETS.length,
-  left: 2 + ((i * 5.3 + 3) % 92),
-  delay: i * 2.7 + Math.sin(i * 1.4) * 4,
-  duration: 28 + (i % 7) * 6,
-  size: 28 + (i % 6) * 12,
+  left: 1 + ((i * 3.3 + 2) % 95),
+  delay: i * 1.8 + Math.sin(i * 1.4) * 3,
+  duration: 20 + (i % 7) * 5,
+  size: 32 + (i % 6) * 14,
   animIndex: i % 3,
-  opacity: 0.10 + (i % 5) * 0.04,
+  opacity: 0.4 + (i % 5) * 0.06,
   rotation: ((i * 47 + 13) % 360) - 180,
   flipX: i % 2 === 0,
 }));
