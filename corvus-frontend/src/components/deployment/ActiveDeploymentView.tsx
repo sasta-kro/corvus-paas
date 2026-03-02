@@ -26,7 +26,10 @@ export default function ActiveDeploymentView({
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const expiresAt = new Date(new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS);
+  // Use expires_at from backend if available, otherwise fall back to client-side calculation
+  const expiresAt = deployment.expires_at
+    ? new Date(deployment.expires_at)
+    : new Date(new Date(deployment.created_at).getTime() + DEFAULT_TTL_MS);
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);

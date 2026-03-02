@@ -15,6 +15,7 @@ export interface Deployment {
   url?: string;
   webhook_secret?: string;
   auto_deploy: boolean;
+  expires_at?: string;
   created_at: string;
   updated_at: string;
 }

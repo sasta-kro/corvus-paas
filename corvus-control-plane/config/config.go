@@ -133,7 +133,7 @@ func LoadAppConfig() *AppConfig {
 		DefaultTTLMinutes:  getEnvInt("DEFAULT_TTL_MINUTES", 15),
 		ExtendedTTLMinutes: getEnvInt("EXTENDED_TTL_MINUTES", 60),
 
-		CORSOrigin: getEnv("CORS_ORIGIN", "*"),
+		CORSOrigin: getEnv("CORS_ORIGIN", "https://corvus.sasta.dev"),
 
 		// TODO add env var for traefik stuff like domains, base domains and stuff here
 	}

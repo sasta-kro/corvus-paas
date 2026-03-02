@@ -28,6 +28,7 @@ dist
 dist-ssr
 *.local
 **/.claude
+resources-archives/
 
 # Editor directories and files
 .vscode/*
@@ -37,4 +38,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-/corvus-frontend-old-archive/
