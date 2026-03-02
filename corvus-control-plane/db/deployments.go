@@ -96,6 +96,7 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 		deployment.URL,           // *string, nil inserts NULL
 		deployment.WebhookSecret, // *string, nil inserts NULL
 		deployment.AutoDeploy,    // bool, driver converts to 0/1
+		deployment.PresetID,      // *string, nil inserts NULL
 		deployment.ExpiresAt,     // *time.Time, nil inserts NULL
 		deployment.CreatedAt,
 		deployment.UpdatedAt,
