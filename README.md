@@ -247,6 +247,9 @@ Corvus v1 is a working proof-of-concept that proves the pipeline works end-to-en
 The v1 is a single-node system. Everything after that is about removing the single-node assumption and turning this into software that can run at any scale.
 
 ---
+## TODO
+update readme on preset deployment setup for people who plan to locally host this. like where to put the folders and such
+
 
 ## License
 

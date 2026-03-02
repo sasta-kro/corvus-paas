@@ -3,6 +3,8 @@ package build
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +15,46 @@ import (
 // json.Unmarshal silently ignores everything else.
 type githubRepoInfo struct {
 	DefaultBranch string `json:"default_branch"`
+}
+
+// checkGitHubRepoExists verifies that a public GitHub repository is accessible
+// before attempting a potentially hanging git clone. Returns nil if the repo
+// exists and is publicly accessible, or an error with a clear message if not.
+//
+// This prevents the pipeline from hanging indefinitely when a repo URL is
+// invalid, private, or points to a deleted repository.
+func checkGitHubRepoExists(repoURL string, logger *slog.Logger) error {
+	ownerAndRepo, err := extractOwnerRepo(repoURL)
+	if err != nil {
+		return fmt.Errorf("invalid GitHub URL %q: %w", repoURL, err)
+	}
+
+	apiURL := "https://api.github.com/repos/" + ownerAndRepo
+
+	logger.Info("checking if github repository exists", "url", repoURL, "api_url", apiURL)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return fmt.Errorf("failed to reach GitHub API to verify repo %q: %w", ownerAndRepo, err)
+	}
+	defer resp.Body.Close()
+	// drain the body so the connection can be reused
+	io.Copy(io.Discard, resp.Body)
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		logger.Info("github repository exists and is accessible", "repo", ownerAndRepo)
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("GitHub repository %q does not exist or is private", ownerAndRepo)
+	case http.StatusForbidden:
+		// 403 usually means rate limited
+		logger.Warn("github API returned 403 (possible rate limit), skipping existence check", "repo", ownerAndRepo)
+		return nil // optimistic: let the clone attempt proceed
+	default:
+		return fmt.Errorf("GitHub API returned unexpected status %d for %q", resp.StatusCode, ownerAndRepo)
+	}
 }
 
 // fetchGitHubDefaultBranch queries the GitHub API to determine the default

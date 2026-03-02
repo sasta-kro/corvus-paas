@@ -187,8 +187,8 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 
 	rawSourceType := request.FormValue("source_type")
 	sourceType := models.SourceType(rawSourceType) // cast type
-	if sourceType != models.SourceZip && sourceType != models.SourceGitHub {
-		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "source_type must be 'zip' or 'github'", handler.logger)
+	if sourceType != models.SourceZip && sourceType != models.SourceGitHub && sourceType != models.SourcePrebuilt {
+		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "source_type must be 'zip', 'github', or 'prebuilt'", handler.logger)
 		return
 	}
 	validatedRequest.SourceType = models.SourceType(rawSourceType)
@@ -250,6 +250,18 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 	rawAutoDeploy := request.FormValue("auto_deploy")
 	autoDeploy := rawAutoDeploy == "true"
 	validatedRequest.AutoDeploy = autoDeploy
+
+	// ===== handle preset_id for prebuilt deployments
+	var presetID *string
+	if sourceType == models.SourcePrebuilt {
+		rawPresetID := request.FormValue("preset_id")
+		if rawPresetID == "" {
+			writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "preset_id is required when source_type is 'prebuilt'", handler.logger)
+			return
+		}
+		presetID = &rawPresetID
+		handler.logger.Info("prebuilt deployment requested", "preset_id", rawPresetID)
+	}
 
 	// ===== handle zip file upload
 
@@ -331,6 +343,7 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		URL:                  &deploymentURL,
 		WebhookSecret:        &webhookSecret,
 		AutoDeploy:           validatedRequest.AutoDeploy,
+		PresetID:             presetID,
 		ExpiresAt:            expiresAt,
 	}
 
@@ -361,6 +374,10 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 
 	if validatedRequest.SourceType == models.SourceGitHub {
 		go handler.deployerPipeline.DeployGitHub(deployment)
+	}
+
+	if validatedRequest.SourceType == models.SourcePrebuilt {
+		go handler.deployerPipeline.DeployPrebuilt(deployment)
 	}
 
 	// 201 Created is the correct status for a successful resource creation
@@ -457,6 +474,8 @@ func (handler *DeploymentHandler) RedeployDeployment(responseWriter http.Respons
 		go handler.deployerPipeline.RedeployExistingZip(deployment)
 	case models.SourceGitHub:
 		go handler.deployerPipeline.DeployGitHub(deployment)
+	case models.SourcePrebuilt:
+		go handler.deployerPipeline.DeployPrebuilt(deployment)
 
 	default:
 		writeErrorJsonAndLogIt(responseWriter, http.StatusBadRequest, "unknown source type", handler.logger)

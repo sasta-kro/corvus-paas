@@ -12,6 +12,7 @@
 
 # secrets
  **/*.db # will be tracked for a bit during development
+**/*IGNORE*
 
 #### from frontend .gitignore
 # Logs

@@ -1,5 +1,5 @@
 export type DeploymentStatus = "deploying" | "live" | "failed";
-export type SourceType = "zip" | "github";
+export type SourceType = "zip" | "github" | "prebuilt";
 
 export interface Deployment {
   id: string;
@@ -15,6 +15,7 @@ export interface Deployment {
   url?: string;
   webhook_secret?: string;
   auto_deploy: boolean;
+  preset_id?: string;
   expires_at?: string;
   created_at: string;
   updated_at: string;
@@ -25,7 +26,9 @@ export interface DeployPreset {
   name: string;
   description: string;
   icon: string;
-  githubUrl: string;
+  sourceType: SourceType;
+  presetId?: string;
+  githubUrl?: string;
   branch: string;
   buildCommand: string;
   outputDirectory: string;

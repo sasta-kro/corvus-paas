@@ -64,6 +64,12 @@ func (database *Database) migrate() error {
 	if err != nil {
 		return fmt.Errorf("failed to execute schema migration (create tables & columns): %w", err)
 	}
+
+	// add preset_id column to existing databases that were created before
+	// this column existed. SQLite returns an error if the column already exists,
+	// which we silently ignore since that means the migration already ran.
+	database.connection.Exec("ALTER TABLE deployments ADD COLUMN preset_id TEXT")
+
 	return nil
 }
 
@@ -90,6 +96,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     url            TEXT,
     webhook_secret TEXT,
     auto_deploy    INTEGER NOT NULL DEFAULT 0,
+	preset_id      TEXT,
 	expires_at     DATETIME,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

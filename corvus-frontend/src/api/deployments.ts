@@ -55,6 +55,29 @@ export async function createGitHubDeployment(params: {
   return apiPostFormData<Deployment>("/api/deployments", formData);
 }
 
+/** Creates a new deployment from a prebuilt preset */
+export async function createPrebuiltDeployment(params: {
+  name: string;
+  presetId: string;
+  environmentVariables?: Record<string, string>;
+  friendCode?: string;
+}): Promise<Deployment> {
+  const formData = new FormData();
+  formData.append("name", params.name);
+  formData.append("source_type", "prebuilt");
+  formData.append("preset_id", params.presetId);
+  formData.append("branch", "main");
+  formData.append("output_directory", ".");
+  if (params.environmentVariables && Object.keys(params.environmentVariables).length > 0) {
+    formData.append("environment_variables", JSON.stringify(params.environmentVariables));
+  }
+  if (params.friendCode) {
+    formData.append("friend_code", params.friendCode);
+  }
+
+  return apiPostFormData<Deployment>("/api/deployments", formData);
+}
+
 /** Fetches a single deployment by ID */
 export async function getDeployment(id: string): Promise<Deployment> {
   return apiGet<Deployment>(`/api/deployments/${id}`);

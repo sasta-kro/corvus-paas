@@ -59,15 +59,15 @@ func (database *Database) InsertDeployment(deployment *models.Deployment) error 
 			source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, 
 			status, url, webhook_secret, 
-			auto_deploy, expires_at, created_at,
-			updated_at
+			auto_deploy, preset_id, expires_at,
+			created_at, updated_at
 		) VALUES (
 			?, ?, ?, -- these are parameter placeholders, PostgresSQL uses $1, $2, $3
 			?, ?, ?, 
 			?, ?, ?, 
 			?, ?, ?,
 			?, ?, ?,
-			?
+			?, ?
 		)
 	`
 
@@ -115,8 +115,8 @@ func (database *Database) GetDeployment(id string) (*models.Deployment, error) {
 			source_type, github_url, branch,
 			build_cmd, output_dir, env_vars,
 			status, url, webhook_secret,
-			auto_deploy, expires_at, created_at, 
-			updated_at
+			auto_deploy, preset_id, expires_at,
+			created_at, updated_at
 		FROM deployments
 		WHERE id = ?
 	`
@@ -148,7 +148,8 @@ func (database *Database) ListDeployments() ([]*models.Deployment, error) {
 		SELECT
 			id, slug, name, source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, status, url,
-			webhook_secret, auto_deploy, expires_at, created_at, updated_at
+			webhook_secret, auto_deploy, preset_id, expires_at,
+			created_at, updated_at
 		FROM deployments
 		ORDER BY created_at DESC
 	`
@@ -313,8 +314,8 @@ func (database *Database) ListExpiredDeployments() ([]*models.Deployment, error)
 			source_type, github_url, branch,
 			build_cmd, output_dir, env_vars, 
 			status, url, webhook_secret,
-			auto_deploy, expires_at, created_at,
-			updated_at
+			auto_deploy, preset_id, expires_at,
+			created_at, updated_at
 		FROM deployments
 		WHERE expires_at IS NOT NULL
 		  AND expires_at <= CURRENT_TIMESTAMP
@@ -397,6 +398,7 @@ func scanDeploymentFields(row scanner) (*models.Deployment, error) {
 		&deployment.URL,           // scans NULL -> nil *string
 		&deployment.WebhookSecret, // scans NULL -> nil *string
 		&deployment.AutoDeploy,    // scans INTEGER 0/1 -> bool
+		&deployment.PresetID,      // scans NULL -> nil *string
 		&deployment.ExpiresAt,
 		&deployment.CreatedAt,
 		&deployment.UpdatedAt,

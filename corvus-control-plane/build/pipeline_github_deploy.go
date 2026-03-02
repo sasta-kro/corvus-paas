@@ -75,6 +75,19 @@ func (deployerPipeline *DeployerPipeline) DeployGitHub(deployment *models.Deploy
 		return
 	}
 
+	// ===== Verify the repository exists before attempting clone
+	// git clone to a non-existent or private repo can hang waiting for credentials
+	// on systems without a TTY. Checking via the GitHub API first gives a fast,
+	// clear failure instead of an indefinite hang.
+	repoCheckErr := checkGitHubRepoExists(*deployment.GitHubURL, deployerPipeline.logger)
+	if repoCheckErr != nil {
+		pipelineLogger.logFailureAndUpdateStatus(
+			fmt.Sprintf("repository check failed for %s", *deployment.GitHubURL),
+			repoCheckErr,
+		)
+		return
+	}
+
 	// the temp working directory path is generated without creating the directory.
 	// git clone creates the destination directory itself. If os.MkdirTemp were used,
 	// the directory would already exist and git clone would fail with "destination path already exists."

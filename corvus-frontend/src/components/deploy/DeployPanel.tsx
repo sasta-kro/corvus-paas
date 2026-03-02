@@ -4,7 +4,7 @@ import DeployTabs from "./DeployTabs";
 import QuickDeployTab from "./QuickDeployTab";
 import ZipUploadTab from "./ZipUploadTab";
 import GitHubRepoTab from "./GitHubRepoTab";
-import { createGitHubDeployment, createZipDeployment } from "../../api/deployments";
+import { createGitHubDeployment, createZipDeployment, createPrebuiltDeployment } from "../../api/deployments";
 import { useFriendCode } from "../../hooks/useFriendCode";
 import { useToast } from "../shared/Toast";
 import { extractNameFromGithubUrl } from "../../lib/utils";
@@ -27,15 +27,32 @@ export default function DeployPanel({ onDeployStarted }: DeployPanelProps) {
       if (message && preset.requiresTextInput) {
         envVars["VITE_CORVUS_MESSAGE"] = message;
       }
-      const deployment = await createGitHubDeployment({
-        name: preset.requiresTextInput ? "Custom Message" : preset.name,
-        githubUrl: preset.githubUrl,
-        branch: preset.branch,
-        buildCommand: preset.buildCommand,
-        outputDirectory: preset.outputDirectory,
-        environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
-        friendCode: friendCode || undefined,
-      });
+
+      let deployment: Deployment;
+
+      if (preset.sourceType === "prebuilt" && preset.presetId) {
+        // Prebuilt preset: skip clone + build, deploy from server-side prebuilt files
+        deployment = await createPrebuiltDeployment({
+          name: preset.requiresTextInput ? "Custom Message" : preset.name,
+          presetId: preset.presetId,
+          environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
+          friendCode: friendCode || undefined,
+        });
+      } else if (preset.githubUrl) {
+        // GitHub preset: clone + build from repo
+        deployment = await createGitHubDeployment({
+          name: preset.requiresTextInput ? "Custom Message" : preset.name,
+          githubUrl: preset.githubUrl,
+          branch: preset.branch,
+          buildCommand: preset.buildCommand,
+          outputDirectory: preset.outputDirectory,
+          environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
+          friendCode: friendCode || undefined,
+        });
+      } else {
+        throw new Error("Preset is missing both presetId and githubUrl");
+      }
+
       onDeployStarted(deployment);
     } catch (err) {
       addToast(err instanceof Error ? err.message : "Failed to create deployment", "error");

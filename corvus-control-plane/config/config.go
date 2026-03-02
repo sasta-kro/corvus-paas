@@ -29,9 +29,15 @@ type AppConfig struct {
 	// which is bind-mounted into the Nginx container.
 	AssetStorageRoot string
 
-	// the base directory where build and deploy log files are written.
+	// LogRoot is the base directory where build and deploy log files are written.
 	// one log file per deployment, named by slug.
 	LogRoot string
+
+	// PresetStorageRoot is the base directory containing pre-built static files
+	// for quick-deploy presets. Each preset gets its own subdirectory here
+	// (eg, /srv/corvus-paas/presets/vite-starter/) containing the ready-to-serve
+	// static files. Prebuilt deployments copy from here instead of cloning + building.
+	PresetStorageRoot string
 
 	// TraefikNetwork is the Docker network name that Traefik and all
 	// per-deployment Nginx containers are connected to.
@@ -124,10 +130,11 @@ func LoadAppConfig() *AppConfig {
 		DBPath: getEnv("DB_PATH", "./corvus.db"),
 		// platform and server resources should be in `/srv` cuz of FHS compliance and SELinux context avoidance
 		// (can have permission problem with SELinux in $HOME, but i can also have it in ./data/deployments if i want self contained)
-		AssetStorageRoot: getEnv("ASSET_STORAGE_ROOT", "/srv/corvus-paas/deployments"),
-		LogRoot:          getEnv("LOG_ROOT", "/srv/corvus-paas/logs"),
-		TraefikNetwork:   getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
-		LogFormat:        getEnv("LOG_FORMAT", "text"),
+		AssetStorageRoot:  getEnv("ASSET_STORAGE_ROOT", "/srv/corvus-paas/deployments"),
+		LogRoot:           getEnv("LOG_ROOT", "/srv/corvus-paas/logs"),
+		PresetStorageRoot: getEnv("PRESET_STORAGE_ROOT", "/srv/corvus-paas/presets"),
+		TraefikNetwork:    getEnv("TRAEFIK_NETWORK", "corvus-paas-network"),
+		LogFormat:         getEnv("LOG_FORMAT", "text"),
 
 		FriendCode:         getEnv("FRIEND_CODE", "HyggeNaterre"), // empty means no friend code
 		DefaultTTLMinutes:  getEnvInt("DEFAULT_TTL_MINUTES", 15),

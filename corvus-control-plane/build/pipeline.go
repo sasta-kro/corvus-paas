@@ -28,6 +28,10 @@ type DeployerPipeline struct {
 	// TODO logs are written even in v1 so v2 log streaming does not require changing the build system, only adding a read endpoint.
 	logRoot string
 
+	// presetStorageRoot is the base directory containing pre-built static files
+	// for quick-deploy presets. Each preset has its own subdirectory here.
+	presetStorageRoot string
+
 	// traefikNetwork is the Docker network name (corvus-paas-network) passed to the Nginx container
 	// so Traefik can route traffic to it.
 	traefikNetwork string
@@ -37,9 +41,10 @@ type DeployerPipeline struct {
 // mirrors the relevant fields from config.Config so the pipeline
 // does not import the config package (keeps the dependency graph clean).
 type DeployerPipelineConfig struct {
-	AssetStorageRoot string
-	LogRoot          string
-	TraefikNetwork   string
+	AssetStorageRoot  string
+	LogRoot           string
+	PresetStorageRoot string
+	TraefikNetwork    string
 }
 
 // NewDeployerPipeline constructs a DeployerPipeline with its required dependencies.
@@ -50,12 +55,13 @@ func NewDeployerPipeline(
 	config DeployerPipelineConfig,
 ) *DeployerPipeline {
 	return &DeployerPipeline{
-		database:         database,
-		dockerClient:     dockerClient,
-		logger:           logger,
-		assetStorageRoot: config.AssetStorageRoot,
-		logRoot:          config.LogRoot,
-		traefikNetwork:   config.TraefikNetwork,
+		database:          database,
+		dockerClient:      dockerClient,
+		logger:            logger,
+		assetStorageRoot:  config.AssetStorageRoot,
+		logRoot:           config.LogRoot,
+		presetStorageRoot: config.PresetStorageRoot,
+		traefikNetwork:    config.TraefikNetwork,
 	}
 }
 

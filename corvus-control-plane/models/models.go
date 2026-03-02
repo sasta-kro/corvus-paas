@@ -50,6 +50,11 @@ const (
 
 	// SourceGitHub means the deployment source is a public GitHub repository URL
 	SourceGitHub SourceType = "github"
+
+	// SourcePrebuilt means the deployment uses pre-built static files stored on
+	// the server's filesystem. Used for quick-deploy presets (Vite Starter, React App)
+	// to skip the clone + build steps entirely and deploy in seconds.
+	SourcePrebuilt SourceType = "prebuilt"
 )
 
 /*
@@ -122,6 +127,11 @@ type Deployment struct {
 	// AutoDeploy controls whether a push to the configured branch triggers a rebuild.
 	// stored as INTEGER 0/1 in SQLite (SQLite has no native boolean type).
 	AutoDeploy bool `json:"auto_deploy" db:"auto_deploy"`
+
+	// PresetID identifies which prebuilt preset this deployment was created from.
+	// only populated for source_type "prebuilt". nil for zip and github deployments.
+	// example: "vite-starter", "react-app"
+	PresetID *string `json:"preset_id,omitempty" db:"preset_id"`
 
 	// ExpiresAt is the timestamp when this deployment should be automatically
 	// cleaned up (container stopped, files removed, DB row deleted).
