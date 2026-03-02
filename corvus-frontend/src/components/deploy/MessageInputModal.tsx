@@ -20,10 +20,19 @@ export default function MessageInputModal({ isOpen, onClose, onSubmit }: Message
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
+      <Dialog.Portal container={document.body}>
         <Dialog.Overlay className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(17,17,16,0.55)" }} />
         <Dialog.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50 ink-card torn-edge-2"
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "100%",
+            maxWidth: "28rem",
+            zIndex: 50,
+          }}
+          className="ink-card torn-edge-2"
         >
           <Dialog.Title className="font-brush text-lg mb-1" style={{ color: "var(--sumi)" }}>
             Your Message
