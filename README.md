@@ -14,7 +14,7 @@
 
 A self-hosted Platform-as-a-Service that takes a zip file or a public GitHub repo URL and deploys it as a live website with a unique public URL. Built from scratch in Go. No Heroku buildpacks, no managed services, no abstraction layers between the code and the containers. The control plane talks directly to the Docker daemon via the Go SDK, attaches Traefik routing labels programmatically, and exposes everything to the public internet through a Cloudflare Tunnel.
 
-> **Live demo (almost done, but not yet):** [corvus.sasta.dev](https://corvus.sasta.dev)
+> **Live demo:** [corvus.sasta.dev](https://corvus.sasta.dev)
 
 ---
 

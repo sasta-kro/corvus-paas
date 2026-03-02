@@ -20,7 +20,14 @@ interface FeatherData {
   rotation: number;
   flipX: boolean;
 }
-
+/*
+Count: 18 → 30 feathers (more frequent)
+Opacity: 0.10–0.26 → 0.18–0.42 (much more visible)
+Size: 28–88px → 32–102px (slightly larger)
+Duration: 28–70s → 20–55s (fall faster, more movement on screen)
+Delay spacing: 2.7s apart → 1.8s apart (feathers appear sooner/closer together)
+Spread: slightly wider distribution (1–96% instead of 2–94%)
+ */
 const feathers: FeatherData[] = Array.from({ length: 30 }, (_, i) => ({
   id: i,
   asset: i % FEATHER_ASSETS.length,
