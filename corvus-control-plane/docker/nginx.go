@@ -428,8 +428,9 @@ func (dockerClient *DockerClient) pullImageIfNotPresent(context context.Context,
 // label breakdown:
 //   - traefik.enable=true                      -- opt this container into Traefik routing
 //     (required because exposedByDefault: false in traefik.yml)
-//   - traefik.http.routers.<slug>.rule          -- match requests where the Host header equals <slug>.localhost
+//   - traefik.http.routers.<slug>.rule          -- match requests where the Host header equals <slug>.domain
 //   - traefik.http.services.<slug>.loadbalancer -- tell Traefik which port inside the container to proxy to
+//     (80 cuz thats where nginx server)
 func traefikLabels(slug string, traefikNetwork string) map[string]string {
 	return map[string]string{
 		"traefik.enable":                                              "true",
