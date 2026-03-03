@@ -1,6 +1,7 @@
+![Demo](assets/corvus-demo-clip.gif)
+
 # Corvus PaaS
 
-![Demo](assets/corvus-demo-clip.gif)
 
 ![Go](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white)
 ![Docker SDK](https://img.shields.io/badge/Docker-SDK_for_Go-2496ED?logo=docker&logoColor=white)
@@ -12,6 +13,7 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)
+
 
 
 A self-hosted Platform-as-a-Service that takes a zip file or a public GitHub repo URL and deploys it as a live website with a unique public URL. Built from scratch in Go. No Heroku buildpacks, no managed services, no abstraction layers between the code and the containers. The control plane talks directly to the Docker daemon via the Go SDK, attaches Traefik routing labels programmatically, and exposes everything to the public internet through a Cloudflare Tunnel.
