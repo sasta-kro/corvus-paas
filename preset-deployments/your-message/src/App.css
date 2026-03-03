@@ -11,7 +11,6 @@ body {
   justify-content: center;
   min-height: 80vh;
   padding: 2rem;
-  /*outline: cyan solid 1px;*/
 }
 
 .corvus-logo {
@@ -63,3 +62,4 @@ body {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
