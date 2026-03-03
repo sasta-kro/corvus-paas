@@ -64,8 +64,9 @@ export const DEPLOY_PRESETS: DeployPreset[] = [
     sourceType: "github",
     githubUrl: "https://github.com/sasta-kro/test-site-corvus-github-deploy.git",
     branch: "main",
-    buildCommand: "npm ci && npm run build",
-    outputDirectory: "dist",
+    // TODO: once the actual React site is built, switch buildCommand to "npm ci && npm run build" and outputDirectory to "dist"
+    buildCommand: "",
+    outputDirectory: "under-construction-page",
     requiresTextInput: false,
   },
   {

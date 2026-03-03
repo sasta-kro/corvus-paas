@@ -8,7 +8,7 @@ export default function HeroSection() {
     const filterId = `hero-tex-${id}`;
 
   return (
-    <section className="text-center py-14 px-4 sm:px-6 relative" style={{ zIndex: 10 }}>
+    <section className="text-center py-14 px-4 sm:px-6 relative" style={{ zIndex: 10, marginBottom: "-1.8rem" }}>
       {/* Decorative ink splatters */}
       <InkSplatter variant={0} size={70} style={{ top: 20, left: "10%", opacity: 0.08 }} />
       <InkSplatter variant={2} size={55} style={{ top: 60, right: "12%", opacity: 0.07 }} />
@@ -69,7 +69,7 @@ export default function HeroSection() {
       <h1
         className="font-brush text-5xl sm:text-6xl mb-5 leading-tight"
         style={{
-          marginTop: "-3rem",
+          marginTop: "-2rem",
           color: "var(--sumi)",
           textShadow: "1px 1px 0 rgba(17,17,16,0.15), 0 0 8px rgba(17,17,16,0.04)",
         }}
