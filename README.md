@@ -1,5 +1,7 @@
 # Corvus PaaS
 
+![Demo](assets/corvus-demo-clip.gif)
+
 ![Go](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white)
 ![Docker SDK](https://img.shields.io/badge/Docker-SDK_for_Go-2496ED?logo=docker&logoColor=white)
 ![Traefik](https://img.shields.io/badge/Traefik-v3-24A1C1?logo=traefikproxy&logoColor=white)
