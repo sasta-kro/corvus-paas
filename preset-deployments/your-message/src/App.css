@@ -1,3 +1,9 @@
+body {
+  display: flex;
+  align-content: center;
+  justify-content: center;
+}
+
 .message-container {
   display: flex;
   flex-direction: column;
@@ -5,6 +11,7 @@
   justify-content: center;
   min-height: 80vh;
   padding: 2rem;
+  /*outline: cyan solid 1px;*/
 }
 
 .corvus-logo {
@@ -33,7 +40,7 @@
 .message-flavor {
   margin-top: 2rem;
   color: #888;
-  max-width: 380px;
+  max-width: 450px;
   font-size: 0.9rem;
   line-height: 1.6;
   text-align: center;
