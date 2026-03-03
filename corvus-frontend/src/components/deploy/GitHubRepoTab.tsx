@@ -21,7 +21,7 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
   const [repoUrl, setRepoUrl] = useState("");
   const [branch, setBranch] = useState("main");
   const [buildCommand, setBuildCommand] = useState("");
-  const [outputDirectory, setOutputDirectory] = useState(".");
+  const [outputDirectory, setOutputDirectory] = useState("dist");
   const [urlError, setUrlError] = useState("");
   const [buildError, setBuildError] = useState("");
   const [showBuildWarning, setShowBuildWarning] = useState(false);
@@ -70,7 +70,7 @@ export default function GitHubRepoTab({ onDeploy, disabled }: GitHubRepoTabProps
             <label htmlFor="gh-build-cmd" className="ink-label">Build Command</label>
             <input id="gh-build-cmd" type="text" value={buildCommand}
               onChange={(e) => { setBuildCommand(e.target.value); if (buildError) setBuildError(""); }}
-              placeholder="e.g., npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "monospace" }} />
+              placeholder="npm ci && npm run build" disabled={disabled} className="ink-input" style={{ fontFamily: "monospace", fontSize: "0.75rem" }} />
             {buildError && <p style={{ color: "var(--vermillion)", fontSize: "0.8rem", marginTop: "0.3rem" }}>{buildError}</p>}
           </div>
           <div>

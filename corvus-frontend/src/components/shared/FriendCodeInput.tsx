@@ -60,7 +60,7 @@ export default function FriendCodeInput() {
         onKeyDown={(e) => e.key === "Enter" && handleApply()}
         placeholder="Enter code"
         className="ink-input"
-        style={{ width: "6rem", padding: "0.2rem 0.5rem", fontSize: "0.8rem", borderBottomWidth: "1.5px" }}
+        style={{ width: "6rem", padding: "0.2rem 0.5rem", fontSize: "0.8rem", borderBottomWidth: "1.5px", height: "auto" }}
       />
       <button onClick={handleApply} disabled={isValidating || !inputValue.trim()}
         className="ink-btn" style={{ padding: "0.2rem 0.6rem", fontSize: "0.8rem" }}>
