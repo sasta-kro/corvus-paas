@@ -70,10 +70,11 @@ func main() {
 		dockerClient,
 		logger,
 		build.DeployerPipelineConfig{
-			AssetStorageRoot:  appConfig.AssetStorageRoot,
-			LogRoot:           appConfig.LogRoot,
-			PresetStorageRoot: appConfig.PresetStorageRoot,
-			TraefikNetwork:    appConfig.TraefikNetwork,
+			AssetStorageRoot:     appConfig.AssetStorageRoot,
+			LogRoot:              appConfig.LogRoot,
+			PresetStorageRoot:    appConfig.PresetStorageRoot,
+			TempBuildStorageRoot: appConfig.TempBuildStorageRoot,
+			TraefikNetwork:       appConfig.TraefikNetwork,
 		},
 	)
 

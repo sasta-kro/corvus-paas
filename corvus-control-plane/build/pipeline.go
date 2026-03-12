@@ -32,6 +32,9 @@ type DeployerPipeline struct {
 	// for quick-deploy presets. Each preset has its own subdirectory here.
 	presetStorageRoot string
 
+	// for build output from ephemeral build containers
+	tempBuildStorageRoot string
+
 	// traefikNetwork is the Docker network name (corvus-paas-network) passed to the Nginx container
 	// so Traefik can route traffic to it.
 	traefikNetwork string
@@ -41,10 +44,11 @@ type DeployerPipeline struct {
 // mirrors the relevant fields from config.Config so the pipeline
 // does not import the config package (keeps the dependency graph clean).
 type DeployerPipelineConfig struct {
-	AssetStorageRoot  string
-	LogRoot           string
-	PresetStorageRoot string
-	TraefikNetwork    string
+	AssetStorageRoot     string
+	LogRoot              string
+	PresetStorageRoot    string
+	TempBuildStorageRoot string
+	TraefikNetwork       string
 }
 
 // NewDeployerPipeline constructs a DeployerPipeline with its required dependencies.
@@ -55,13 +59,14 @@ func NewDeployerPipeline(
 	config DeployerPipelineConfig,
 ) *DeployerPipeline {
 	return &DeployerPipeline{
-		database:          database,
-		dockerClient:      dockerClient,
-		logger:            logger,
-		assetStorageRoot:  config.AssetStorageRoot,
-		logRoot:           config.LogRoot,
-		presetStorageRoot: config.PresetStorageRoot,
-		traefikNetwork:    config.TraefikNetwork,
+		database:             database,
+		dockerClient:         dockerClient,
+		logger:               logger,
+		assetStorageRoot:     config.AssetStorageRoot,
+		logRoot:              config.LogRoot,
+		presetStorageRoot:    config.PresetStorageRoot,
+		tempBuildStorageRoot: config.TempBuildStorageRoot,
+		traefikNetwork:       config.TraefikNetwork,
 	}
 }
 

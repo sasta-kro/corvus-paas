@@ -93,8 +93,8 @@ func (deployerPipeline *DeployerPipeline) DeployGitHub(deployment *models.Deploy
 	// the directory would already exist and git clone would fail with "destination path already exists."
 	// this matches the pattern used in DeployZipUpload where filepath.Join(os.TempDir(), ...)
 	// generates a path and lets the subsequent operation create it.
-	// it would look like `/<tmp folder>/corvus-build-.../<the cloned repo>`
-	tempWorkingDir := filepath.Join(os.TempDir(), "corvus-build-"+deployment.ID)
+	// it would look like `.../<tmp folder>/corvus-build-.../<the cloned repo>`
+	tempWorkingDir := filepath.Join(deployerPipeline.tempBuildStorageRoot, "corvus-build-"+deployment.ID)
 	defer func() { // clean up the working directory on any exit path
 		removeError := os.RemoveAll(tempWorkingDir)
 		if removeError != nil {
