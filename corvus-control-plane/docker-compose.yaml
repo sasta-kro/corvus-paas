@@ -1,0 +1,64 @@
+services: # Defining the top-level block for all application components
+  corvus-control-plane: # internal `docker compose` service name for this Go backend app
+    build: .  # build img from same dir as Dockerfile is in
+
+    # Assigning a static name to the container for easier management in Docker commands
+    container_name: corvus-control-plane
+
+    restart: unless-stopped
+
+    # Opening network ports from the container to the host machine
+    ports:
+
+      # Mapping host port 8080 to container port 8080 to allow external access via Cloudflare Tunnel
+      - "8080:8080"
+
+    # Setting environment variables required by the Go application config
+    environment:
+
+      # internal listening port for the HTTP server
+      - PORT=8080
+
+      # file path for the SQLite database
+      - DB_PATH=/srv/corvus-paas/corvus.db
+
+      # storage location for uploaded deployment assets
+      - ASSET_STORAGE_ROOT=/srv/corvus-paas/deployments
+
+      # directory path for application and container logs
+      - LOG_ROOT=/srv/corvus-paas/logs
+
+      # location of template presets
+      - PRESET_STORAGE_ROOT=/srv/corvus-paas/presets
+
+      # Docker network used by Traefik for routing traffic
+      - TRAEFIK_NETWORK=corvus-paas-network
+
+      # authentication code required to have more privilege features
+      - FRIEND_CODE=HyggeNaterre
+
+    # Defining persistent storage and host system bindings
+    volumes:
+
+      # Mounting the host Docker socket to allow the Go SDK to spawn and manage external containers
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Mounting the host storage directory to persist database deployments logs and presets outside the container
+      - /srv/corvus-paas:/srv/corvus-paas
+
+    # Connecting the service to designated Docker network
+    networks:
+      - corvus-network
+
+# Defining the networks available to the services in this configuration file
+networks:
+
+  # Naming this specific network config block
+  corvus-network:
+
+    # Indicating that this network is created outside of this compose file and must already exist
+    # TODO i gotta look more into creating the network automatically idepotently
+    external: true
+
+    # exact system name of the external Docker network to attach to
+    name: corvus-paas-network
