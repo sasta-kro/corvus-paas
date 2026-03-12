@@ -5,7 +5,7 @@
 
 # Stage 1 starts the build environment (minimal alphine with Go) to compile the Go application.
 # AS builder is like defining a variable to reference this stage later
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25.7-alpine AS builder
 
 # Installing gcc and musl-dev to provide C compilers required by go-sqlite3 for CGO support.
 # RUN = executes a terminal command inside the container
