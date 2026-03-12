@@ -10,7 +10,7 @@ FROM golang:1.25.7-alpine AS builder
 # Installing gcc and musl-dev to provide C compilers required by go-sqlite3 for CGO support.
 # RUN = executes a terminal command inside the container
 # apk = the Alpine Linux's package manager. add = install packages. Its like (dnf install ...)
-RUN apk add --no-cache gcc musl-dev git
+RUN apk add --no-cache gcc musl-dev
 
 # this creates the folder and set it as default location for all subsequent docker instructions.
 WORKDIR /app
@@ -41,7 +41,7 @@ WORKDIR /app
 # ca-certificates = installs the public certificates of trusted Certificate Authorities.
 # Without this, the Go application cannot make secure HTTPS requests to external APIs (like GitHub)
 # because it cannot verify the server's SSL certificate.
-RUN apk add --no-cache tzdata ca-certificates
+RUN apk add --no-cache tzdata ca-certificates git
 
 # This reaches back into the stage named builder, grabs the compiled /corvus-paas binary file,
 # and places it inside the current container at /app/corvus-paas.

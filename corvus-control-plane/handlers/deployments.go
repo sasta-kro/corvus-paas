@@ -309,7 +309,8 @@ func (handler *DeploymentHandler) CreateDeployment(responseWriter http.ResponseW
 		handler.logger.Info("friend_code activated", "slug", slug, "deploymentID", deploymentID)
 		ttlMinutes = handler.extendedTTLMinutes
 	} else if handler.friendCode != "" { // someone put something wrong in the friend code (exploit or malicious)
-		handler.logger.Warn("incorrect friend_code detected (could be malicious)", "slug", slug, "deploymentID", deploymentID)
+		handler.logger.Warn("incorrect friend_code detected (could be malicious)",
+			"slug", slug, "deploymentID", deploymentID, "incorrect_friend_code", handler.friendCode)
 	} else if handler.friendCode == "" {
 		handler.logger.Info("no friend_code detected", "slug", slug, "deploymentID", deploymentID)
 	}
