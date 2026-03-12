@@ -10,7 +10,7 @@ FROM golang:1.25.7-alpine AS builder
 # Installing gcc and musl-dev to provide C compilers required by go-sqlite3 for CGO support.
 # RUN = executes a terminal command inside the container
 # apk = the Alpine Linux's package manager. add = install packages. Its like (dnf install ...)
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev git
 
 # this creates the folder and set it as default location for all subsequent docker instructions.
 WORKDIR /app
